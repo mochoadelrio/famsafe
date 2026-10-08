@@ -52,6 +52,9 @@ function playChime(type = 'normal') {
   }
 }
 
+let currentTileLayer = 'osm';
+let tileLayerInstance;
+
 // Map Initialization
 function initMap() {
   map = L.map('map', {
@@ -60,11 +63,29 @@ function initMap() {
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  // Modern Clean Map Tiles (OpenStreetMap Carto Voyager style)
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+  // OpenStreetMap 100% libre sin API key requerida
+  tileLayerInstance = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
   }).addTo(map);
+}
+
+function toggleSatelliteView() {
+  if (currentTileLayer === 'osm') {
+    map.removeLayer(tileLayerInstance);
+    tileLayerInstance = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Esri World Imagery',
+      maxZoom: 18
+    }).addTo(map);
+    currentTileLayer = 'satellite';
+  } else {
+    map.removeLayer(tileLayerInstance);
+    tileLayerInstance = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19
+    }).addTo(map);
+    currentTileLayer = 'osm';
+  }
 }
 
 // Fetch Full Initial State from Backend
