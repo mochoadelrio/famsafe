@@ -3,9 +3,9 @@ import { db } from './db.js';
 export const PLANS = {
   basic: {
     id: "basic",
-    name: "Plan Básico ($49 MXN/mes)",
-    priceMxn: 49,
-    priceMxnAnnual: 399,
+    name: "Plan Básico ($29 MXN/mes)",
+    priceMxn: 29,
+    priceMxnAnnual: 249,
     maxMembers: 3,
     maxSafeZones: 2,
     historyDays: 7,
@@ -19,9 +19,9 @@ export const PLANS = {
   },
   freemium: {
     id: "freemium",
-    name: "Plan Básico ($49 MXN/mes)",
-    priceMxn: 49,
-    priceMxnAnnual: 399,
+    name: "Plan Básico ($29 MXN/mes)",
+    priceMxn: 29,
+    priceMxnAnnual: 249,
     maxMembers: 3,
     maxSafeZones: 2,
     historyDays: 7,
@@ -35,9 +35,9 @@ export const PLANS = {
   },
   pro_family: {
     id: "pro_family",
-    name: "Plan Familiar Pro ($149 MXN/mes)",
-    priceMxn: 149,
-    priceMxnAnnual: 1199,
+    name: "Familiar Pro ($79 MXN/mes)",
+    priceMxn: 79,
+    priceMxnAnnual: 699,
     maxMembers: 10,
     maxSafeZones: 999,
     historyDays: 30,
@@ -48,14 +48,14 @@ export const PLANS = {
       "Modo Privacidad Adolescente",
       "Acompáñame a Casa (Walk With Me)",
       "Historial de 30 días",
-      "Soporte prioritario"
+      "Alertas automáticas escolares"
     ]
   },
   guardian_plus: {
     id: "guardian_plus",
-    name: "Plan Guardian Plus ($289 MXN/mes)",
-    priceMxn: 289,
-    priceMxnAnnual: 2299,
+    name: "Guardian Plus ($149 MXN/mes)",
+    priceMxn: 149,
+    priceMxnAnnual: 1299,
     maxMembers: 999,
     maxSafeZones: 999,
     historyDays: 90,
@@ -66,7 +66,7 @@ export const PLANS = {
       "Detección de accidentes y frenazos bruscos",
       "Alerta de desvío de rutas inusuales por IA",
       "Historial de 90 días con análisis de paradas",
-      "Asistencia 24/7 en emergencias"
+      "Asistencia prioritaria 24/7"
     ]
   }
 };

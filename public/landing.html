@@ -102,23 +102,23 @@
 
           <div class="pt-1">
             <div class="flex items-baseline gap-1">
-              <span class="text-3xl font-black text-slate-900" id="price-basic">$49</span>
+              <span class="text-3xl font-black text-slate-900" id="price-basic">$29</span>
               <span class="text-xs text-slate-500 font-semibold" id="period-basic">MXN / mes</span>
             </div>
             <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="subtext-basic">Cobrado mes a mes</p>
           </div>
 
           <ul class="text-xs text-slate-600 space-y-2 pt-3 border-t border-slate-100">
-            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>Hasta 2 integrantes</strong></li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>Hasta 3 integrantes</strong></li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>2 Zonas Seguras</strong> (ej. Casa y Escuela)</li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Alertas de batería baja (&lt; 15%)</li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Historial de rutas de 7 días</li>
-            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Botón de alerta de pánico</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Botón de alerta de pánico SOS</li>
           </ul>
         </div>
 
-        <a href="/" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-800 hover:bg-slate-50 text-center transition block">
-          Elegir Plan Básico
+        <a href="/?plan=basic" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-800 hover:bg-slate-50 text-center transition block">
+          Elegir Plan Básico ($29 MXN)
         </a>
       </div>
 
@@ -136,7 +136,7 @@
 
           <div class="pt-1">
             <div class="flex items-baseline gap-1">
-              <span class="text-3xl font-black text-blue-600" id="price-pro">$149</span>
+              <span class="text-3xl font-black text-blue-600" id="price-pro">$79</span>
               <span class="text-xs text-slate-500 font-semibold" id="period-pro">MXN / mes</span>
             </div>
             <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="subtext-pro">Cobrado mes a mes</p>
@@ -152,8 +152,8 @@
           </ul>
         </div>
 
-        <a href="/" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs text-center shadow-md shadow-blue-200 transition block">
-          Iniciar Prueba Gratis de 7 Días
+        <a href="/?plan=pro_family" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs text-center shadow-md shadow-blue-200 transition block">
+          Activar Familiar Pro ($79 MXN)
         </a>
       </div>
 
@@ -164,27 +164,28 @@
             <h3 class="text-base font-bold text-slate-900">Guardian Plus</h3>
             <span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">Protección Élite</span>
           </div>
-          <p class="text-[11px] text-slate-500">Audio en vivo y sensores inteligentes de impacto.</p>
+          <p class="text-[11px] text-slate-500">Audio en vivo y sensores inteligentes con IA.</p>
 
           <div class="pt-1">
             <div class="flex items-baseline gap-1">
-              <span class="text-3xl font-black text-purple-600" id="price-guardian">$289</span>
+              <span class="text-3xl font-black text-purple-600" id="price-guardian">$149</span>
               <span class="text-xs text-slate-500 font-semibold" id="period-guardian">MXN / mes</span>
             </div>
             <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="subtext-guardian">Cobrado mes a mes</p>
           </div>
 
           <ul class="text-xs text-slate-600 space-y-2 pt-3 border-t border-purple-100">
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> <strong>Integrantes ilimitados</strong></li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Todo lo del Plan Pro sin límites</li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> <strong>Audio ambiental en vivo en botón SOS</strong></li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Detección de impacto vehicular y frenazos</li>
-            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Detección de desvíos de ruta por IA</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Desvío de ruta inteligente por IA</li>
             <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Historial completo de 90 días</li>
           </ul>
         </div>
 
-        <a href="/" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 font-bold text-xs text-white text-center shadow-md shadow-purple-200 transition block">
-          Elegir Guardian Plus
+        <a href="/?plan=guardian_plus" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 font-bold text-xs text-white text-center shadow-md shadow-purple-200 transition block">
+          Elegir Guardian Plus ($149 MXN)
         </a>
       </div>
 
@@ -270,36 +271,36 @@
         btnAnnual.className = "px-4 py-1.5 rounded-full text-xs font-bold transition bg-blue-600 text-white shadow-sm flex items-center gap-1";
         btnMonthly.className = "px-4 py-1.5 rounded-full text-xs font-bold transition text-slate-600 hover:text-slate-900";
 
-        // Basic Annual: $399 MXN/año ($33 MXN/mes)
-        priceBasic.innerText = "$33";
+        // Basic Annual: $249 MXN/año ($20 MXN/mes)
+        priceBasic.innerText = "$20";
         periodBasic.innerText = "MXN / mes";
-        subtextBasic.innerText = "$399 MXN al año (Ahorras $189 MXN)";
+        subtextBasic.innerText = "$249 MXN al año (Ahorras $99 MXN)";
 
-        // Pro Annual: $1,199 MXN/año ($99 MXN/mes)
-        pricePro.innerText = "$99";
+        // Pro Annual: $699 MXN/año ($58 MXN/mes)
+        pricePro.innerText = "$58";
         periodPro.innerText = "MXN / mes";
-        subtextPro.innerText = "$1,199 MXN al año (Ahorras $589 MXN)";
+        subtextPro.innerText = "$699 MXN al año (Ahorras $249 MXN)";
 
-        // Guardian Annual: $2,299 MXN/año ($191 MXN/mes)
-        priceGuardian.innerText = "$191";
+        // Guardian Annual: $1,299 MXN/año ($108 MXN/mes)
+        priceGuardian.innerText = "$108";
         periodGuardian.innerText = "MXN / mes";
-        subtextGuardian.innerText = "$2,299 MXN al año (Ahorras $1,169 MXN)";
+        subtextGuardian.innerText = "$1,299 MXN al año (Ahorras $489 MXN)";
       } else {
         btnMonthly.className = "px-4 py-1.5 rounded-full text-xs font-bold transition bg-blue-600 text-white shadow-sm";
         btnAnnual.className = "px-4 py-1.5 rounded-full text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center gap-1";
 
-        // Basic Monthly: $49 MXN/mes
-        priceBasic.innerText = "$49";
+        // Basic Monthly: $29 MXN/mes
+        priceBasic.innerText = "$29";
         periodBasic.innerText = "MXN / mes";
         subtextBasic.innerText = "Cobrado mes a mes";
 
-        // Pro Monthly: $149 MXN/mes
-        pricePro.innerText = "$149";
+        // Pro Monthly: $79 MXN/mes
+        pricePro.innerText = "$79";
         periodPro.innerText = "MXN / mes";
         subtextPro.innerText = "Cobrado mes a mes";
 
-        // Guardian Monthly: $289 MXN/mes
-        priceGuardian.innerText = "$289";
+        // Guardian Monthly: $149 MXN/mes
+        priceGuardian.innerText = "$149";
         periodGuardian.innerText = "MXN / mes";
         subtextGuardian.innerText = "Cobrado mes a mes";
       }

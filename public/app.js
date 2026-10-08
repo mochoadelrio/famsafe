@@ -679,45 +679,45 @@ function setModalBillingPeriod(period) {
     if (btnMonthly) btnMonthly.className = "px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition";
 
     const pBasic = document.getElementById('modal-price-basic');
-    if (pBasic) pBasic.innerText = "$399";
+    if (pBasic) pBasic.innerText = "$249";
     const perBasic = document.getElementById('modal-period-basic');
     if (perBasic) perBasic.innerText = "MXN / año";
     const subBasic = document.getElementById('modal-subtext-basic');
-    if (subBasic) subBasic.innerText = "Equivale a solo $33 MXN/mes";
+    if (subBasic) subBasic.innerText = "Equivale a solo $20 MXN/mes";
 
     const pPro = document.getElementById('modal-price-pro');
-    if (pPro) pPro.innerText = "$1,199";
+    if (pPro) pPro.innerText = "$699";
     const perPro = document.getElementById('modal-period-pro');
     if (perPro) perPro.innerText = "MXN / año";
     const subPro = document.getElementById('modal-subtext-pro');
-    if (subPro) subPro.innerText = "Equivale a solo $99 MXN/mes";
+    if (subPro) subPro.innerText = "Equivale a solo $58 MXN/mes";
 
     const pG = document.getElementById('modal-price-guardian');
-    if (pG) pG.innerText = "$2,299";
+    if (pG) pG.innerText = "$1,299";
     const perG = document.getElementById('modal-period-guardian');
     if (perG) perG.innerText = "MXN / año";
     const subG = document.getElementById('modal-subtext-guardian');
-    if (subG) subG.innerText = "Equivale a solo $191 MXN/mes";
+    if (subG) subG.innerText = "Equivale a solo $108 MXN/mes";
   } else {
     if (btnMonthly) btnMonthly.className = "px-4 py-1.5 rounded-full bg-white shadow-sm text-slate-900 transition";
     if (btnAnnual) btnAnnual.className = "px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition flex items-center gap-1.5";
 
     const pBasic = document.getElementById('modal-price-basic');
-    if (pBasic) pBasic.innerText = "$49";
+    if (pBasic) pBasic.innerText = "$29";
     const perBasic = document.getElementById('modal-period-basic');
     if (perBasic) perBasic.innerText = "MXN / mes";
     const subBasic = document.getElementById('modal-subtext-basic');
     if (subBasic) subBasic.innerText = "Cobrado mes a mes";
 
     const pPro = document.getElementById('modal-price-pro');
-    if (pPro) pPro.innerText = "$149";
+    if (pPro) pPro.innerText = "$79";
     const perPro = document.getElementById('modal-period-pro');
     if (perPro) perPro.innerText = "MXN / mes";
     const subPro = document.getElementById('modal-subtext-pro');
     if (subPro) subPro.innerText = "Cobrado mes a mes";
 
     const pG = document.getElementById('modal-price-guardian');
-    if (pG) pG.innerText = "$289";
+    if (pG) pG.innerText = "$149";
     const perG = document.getElementById('modal-period-guardian');
     if (perG) perG.innerText = "MXN / mes";
     const subG = document.getElementById('modal-subtext-guardian');
@@ -1168,6 +1168,7 @@ async function handleRegisterFamily(e) {
   const parentName = document.getElementById('reg-parent-name').value;
   const email = document.getElementById('reg-email').value;
   const password = document.getElementById('reg-password').value;
+  const plan = document.getElementById('reg-plan')?.value || 'pro_family';
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/register-family`, {
@@ -1178,6 +1179,7 @@ async function handleRegisterFamily(e) {
         parentName,
         email,
         password,
+        plan,
         lat: userLiveCoords ? userLiveCoords.lat : undefined,
         lng: userLiveCoords ? userLiveCoords.lng : undefined
       })
@@ -1334,11 +1336,29 @@ function initLiveBatterySync() {
   }
 }
 
+function checkUrlPlanParam() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const plan = urlParams.get('plan');
+  if (plan && ['basic', 'pro_family', 'guardian_plus'].includes(plan)) {
+    if (CURRENT_CIRCLE_ID && state.circle) {
+      // If logged in, ask to switch/activate the plan
+      selectPlan(plan);
+    } else {
+      // If not logged in, open auth modal and pre-select plan
+      openAuthModal();
+      switchAuthTab('create');
+      const planSelect = document.getElementById('reg-plan');
+      if (planSelect) planSelect.value = plan;
+    }
+  }
+}
+
 // Bootstrapping
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
   fetchCircleData().then(() => {
     initLiveBatterySync();
+    checkUrlPlanParam();
   });
   setupSocket();
 });

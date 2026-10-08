@@ -373,7 +373,7 @@
             <h3 class="font-bold text-slate-900 text-base">Plan Básico</h3>
             <div>
               <div class="flex items-baseline gap-1">
-                <span class="text-3xl font-black text-slate-900" id="modal-price-basic">$49</span>
+                <span class="text-3xl font-black text-slate-900" id="modal-price-basic">$29</span>
                 <span class="text-xs text-slate-500 font-semibold" id="modal-period-basic">MXN / mes</span>
               </div>
               <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="modal-subtext-basic">Cobrado mes a mes</p>
@@ -388,7 +388,7 @@
             </ul>
           </div>
           <button onclick="selectPlan('basic')" class="mt-5 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition">
-            Elegir Plan Básico
+            Elegir Plan Básico ($29 MXN)
           </button>
         </div>
 
@@ -404,7 +404,7 @@
             </div>
             <div>
               <div class="flex items-baseline gap-1">
-                <span class="text-3xl font-black text-blue-600" id="modal-price-pro">$149</span>
+                <span class="text-3xl font-black text-blue-600" id="modal-price-pro">$79</span>
                 <span class="text-xs text-slate-500 font-semibold" id="modal-period-pro">MXN / mes</span>
               </div>
               <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="modal-subtext-pro">Cobrado mes a mes</p>
@@ -420,7 +420,7 @@
             </ul>
           </div>
           <button onclick="selectPlan('pro_family')" class="mt-5 w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition">
-            Activar Plan Pro
+            Activar Plan Pro ($79 MXN)
           </button>
         </div>
 
@@ -433,7 +433,7 @@
             </div>
             <div>
               <div class="flex items-baseline gap-1">
-                <span class="text-3xl font-black text-purple-600" id="modal-price-guardian">$289</span>
+                <span class="text-3xl font-black text-purple-600" id="modal-price-guardian">$149</span>
                 <span class="text-xs text-slate-500 font-semibold" id="modal-period-guardian">MXN / mes</span>
               </div>
               <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="modal-subtext-guardian">Cobrado mes a mes</p>
@@ -449,7 +449,7 @@
             </ul>
           </div>
           <button onclick="selectPlan('guardian_plus')" class="mt-5 w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-md shadow-purple-200 transition">
-            Activar Guardian Plus
+            Activar Guardian Plus ($149 MXN)
           </button>
         </div>
       </div>
@@ -533,6 +533,14 @@
         <div>
           <label class="block font-bold text-slate-700 mb-1">Contraseña:</label>
           <input type="password" id="reg-password" required placeholder="••••••••" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Plan de Suscripción Familiar:</label>
+          <select id="reg-plan" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="basic">Plan Básico ($29 MXN/mes) - Hasta 3 integrantes</option>
+            <option value="pro_family" selected>Familiar Pro ($79 MXN/mes) - Más Popular (10 integrantes)</option>
+            <option value="guardian_plus">Guardian Plus ($149 MXN/mes) - Protección Élite con Audio e IA</option>
+          </select>
         </div>
         <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-200 transition">
           Crear Círculo Familiar
