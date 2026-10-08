@@ -182,6 +182,7 @@ async function fetchCircleData() {
     checkActiveSos();
     checkActiveWalks();
     checkSubscriptionExpiration();
+    initLiveBatterySync();
   } catch (err) {
     console.error("Error fetching circle data:", err);
     renderEmptyCircleState();
@@ -1617,6 +1618,7 @@ async function handleRegisterFamily(e) {
     // Switch active circle
     CURRENT_CIRCLE_ID = data.circle.id;
     localStorage.setItem('famsafe_circle_id', data.circle.id);
+    if (data.member?.id) localStorage.setItem('famsafe_current_member_id', data.member.id);
     closeAuthModal();
     openInviteModal();
     await fetchCircleData();
@@ -1658,6 +1660,7 @@ async function handleJoinFamily(e) {
 
     CURRENT_CIRCLE_ID = data.circle.id;
     localStorage.setItem('famsafe_circle_id', data.circle.id);
+    if (data.member?.id) localStorage.setItem('famsafe_current_member_id', data.member.id);
     closeAuthModal();
     alert(`¡Te has unido exitosamente a la ${data.circle.name}!`);
     await fetchCircleData();
@@ -1692,6 +1695,7 @@ async function handleLoginUser(e) {
 
     CURRENT_CIRCLE_ID = data.circle.id;
     localStorage.setItem('famsafe_circle_id', data.circle.id);
+    if (data.member?.id) localStorage.setItem('famsafe_current_member_id', data.member.id);
     closeAuthModal();
     alert(`¡Bienvenido de vuelta, ${data.user.name}!`);
     await fetchCircleData();
@@ -1737,7 +1741,8 @@ function initLiveBatterySync() {
       const sync = () => {
         const level = Math.round(battery.level * 100);
         const isCharging = battery.charging;
-        const myMember = state.members.find(m => m.role === 'guardian');
+        const storedMemberId = localStorage.getItem('famsafe_current_member_id');
+        const myMember = (storedMemberId && state.members.find(m => m.id === storedMemberId)) || state.members.find(m => m.role === 'guardian') || state.members[0];
         if (myMember && (myMember.battery !== level || myMember.isCharging !== isCharging)) {
           myMember.battery = level;
           myMember.isCharging = isCharging;

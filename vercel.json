@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "http://34.228.140.167:3005/api/$1"
     },
     {
       "source": "/socket.io/(.*)",
-      "destination": "/api/index.js"
+      "destination": "http://34.228.140.167:3005/socket.io/$1"
     },
     {
       "source": "/(.*)",
