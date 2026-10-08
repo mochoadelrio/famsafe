@@ -6,6 +6,15 @@
   <title>FamSafe México - Planes y Suscripciones</title>
   <meta name="description" content="Seguridad familiar y rastreo inteligente en México con planes en pesos mexicanos. Cero venta de datos y ahorro extremo de batería.">
 
+  <!-- Favicon & PWA App Icons -->
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FamSafe">
+  <meta name="theme-color" content="#2563eb">
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Phosphor Icons -->
@@ -22,10 +31,8 @@
   <!-- COMPACT TOP BAR -->
   <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 py-2.5 px-4 sm:px-6">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
-          <i class="ph-bold ph-shield-check text-xl"></i>
-        </div>
+      <a href="/" class="flex items-center gap-2.5">
+        <img src="/logo.png" alt="FamSafe Logo" class="w-9 h-9 rounded-xl shadow-sm object-cover border border-slate-100 shrink-0">
         <div class="flex items-center gap-1.5">
           <span class="text-lg font-black tracking-tight text-slate-900">FamSafe</span>
           <span class="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">MXN 🇲🇽</span>
@@ -221,7 +228,10 @@
   <!-- COMPACT FOOTER -->
   <footer class="py-6 px-4 bg-slate-900 text-slate-400 text-xs border-t border-slate-800">
     <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-      <span class="font-bold text-white">FamSafe México &bull; 2026</span>
+      <div class="flex items-center gap-2">
+        <img src="/logo.png" alt="FamSafe Logo" class="w-6 h-6 rounded-lg object-cover">
+        <span class="font-bold text-white">FamSafe México &bull; 2026</span>
+      </div>
       <div class="flex gap-4 text-[11px]">
         <a href="/" class="hover:text-white">Abrir App Web</a>
         <a href="#" class="hover:text-white">Aviso de Privacidad</a>
