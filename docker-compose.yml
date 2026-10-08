@@ -4,7 +4,6 @@ services:
     container_name: famsafe-production
     restart: always
     ports:
-      - "80:3005"
       - "3005:3005"
     environment:
       - NODE_ENV=production
