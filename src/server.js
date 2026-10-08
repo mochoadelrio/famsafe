@@ -30,6 +30,13 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Clean page routes
+app.get('/app', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../public/admin.html')));
+app.get('/landing', (req, res) => res.sendFile(path.join(__dirname, '../public/landing.html')));
+app.get('/privacidad', (req, res) => res.sendFile(path.join(__dirname, '../public/privacidad.html')));
+app.get('/terminos', (req, res) => res.sendFile(path.join(__dirname, '../public/terminos.html')));
+
 // ---------------- REST API ROUTES ----------------
 
 // Register a New Family Circle (with optional CEP verified paymentToken)
