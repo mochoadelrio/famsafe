@@ -72,20 +72,103 @@ class Database {
     const member = this.getMemberById(memberId);
     if (!member) return null;
 
+    const nowIso = new Date().toISOString();
+    const resolvedAddr = address || member.lastLocation?.address || "Coordenadas actualizadas";
+
     member.lastLocation = {
       lat,
       lng,
       accuracy,
-      timestamp: new Date().toISOString(),
-      address: address || member.lastLocation?.address || "Coordenadas actualizadas"
+      timestamp: nowIso,
+      address: resolvedAddr
     };
     member.speedKmh = speedKmh;
     member.status = status;
     if (battery !== undefined) {
       member.battery = battery;
     }
+
+    // Store in persistent Location History according to plan retention (7, 30, or 90 days)
+    if (!Array.isArray(member.locationHistory)) {
+      member.locationHistory = [];
+    }
+
+    const lastEntry = member.locationHistory[0];
+    const isSameSpot = lastEntry &&
+      Math.abs(lastEntry.lat - lat) < 0.0001 &&
+      Math.abs(lastEntry.lng - lng) < 0.0001 &&
+      (Date.now() - new Date(lastEntry.timestamp).getTime()) < 5 * 60 * 1000;
+
+    if (isSameSpot) {
+      lastEntry.timestamp = nowIso;
+      lastEntry.address = resolvedAddr;
+      lastEntry.battery = member.battery;
+      lastEntry.speedKmh = speedKmh;
+    } else {
+      member.locationHistory.unshift({
+        id: `loc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        lat,
+        lng,
+        accuracy,
+        speedKmh,
+        status,
+        battery: member.battery,
+        address: resolvedAddr,
+        timestamp: nowIso
+      });
+    }
+
+    // Apply retention policy based on Circle Subscription Plan (7, 30, or 90 days)
+    const circle = this.getCircleById(member.circleId);
+    const planId = circle?.plan || 'pro_family';
+    const maxDays = planId === 'guardian_plus' ? 90 : planId === 'pro_family' ? 30 : 7;
+    const cutoffTime = Date.now() - (maxDays * 24 * 60 * 60 * 1000);
+
+    member.locationHistory = member.locationHistory
+      .filter(entry => new Date(entry.timestamp).getTime() >= cutoffTime)
+      .slice(0, 1500);
+
     this.save();
     return member;
+  }
+
+  getMemberLocationHistory(memberId, daysFilter = null) {
+    const member = this.getMemberById(memberId);
+    if (!member) return null;
+
+    if (!Array.isArray(member.locationHistory) || member.locationHistory.length === 0) {
+      if (member.lastLocation) {
+        member.locationHistory = [{
+          id: `loc-init-${member.id}`,
+          lat: member.lastLocation.lat,
+          lng: member.lastLocation.lng,
+          accuracy: member.lastLocation.accuracy || 10,
+          speedKmh: member.speedKmh || 0,
+          status: member.status || 'stationary',
+          battery: member.battery || 100,
+          address: member.lastLocation.address || 'Ubicación registrada',
+          timestamp: member.lastLocation.timestamp || new Date().toISOString()
+        }];
+        this.save();
+      } else {
+        return { member, history: [], maxDaysAllowed: 30 };
+      }
+    }
+
+    const circle = this.getCircleById(member.circleId);
+    const planId = circle?.plan || 'pro_family';
+    const maxDaysAllowed = planId === 'guardian_plus' ? 90 : planId === 'pro_family' ? 30 : 7;
+    const effectiveDays = daysFilter ? Math.min(daysFilter, maxDaysAllowed) : maxDaysAllowed;
+    const cutoff = Date.now() - (effectiveDays * 24 * 60 * 60 * 1000);
+
+    const history = member.locationHistory.filter(h => new Date(h.timestamp).getTime() >= cutoff);
+    return {
+      member: { id: member.id, name: member.name, role: member.role, avatar: member.avatar },
+      planId,
+      maxDaysAllowed,
+      effectiveDays,
+      history
+    };
   }
 
   updateMemberBattery(memberId, battery, isCharging = false) {

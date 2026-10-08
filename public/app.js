@@ -188,6 +188,17 @@ async function syncActiveMemberLocation(coords, shouldFlyTo = false, targetMembe
   }
 
   myMember.lastLocation.address = resolvedAddress;
+  appendLocalHistoryBackup(myMember.id, {
+    id: `loc-${Date.now()}`,
+    lat: coords.lat,
+    lng: coords.lng,
+    accuracy: coords.accuracy || 10,
+    speedKmh: coords.speedKmh || 0,
+    status: myMember.status,
+    battery: myMember.battery || 100,
+    address: resolvedAddress,
+    timestamp: new Date().toISOString()
+  });
   renderMembers();
 
   // Persist to AWS backend & notify circle
@@ -487,9 +498,15 @@ function renderMembers() {
                 <div class="h-full ${batteryColor}" style="width: ${member.battery}%"></div>
               </div>
             </div>
-            <div onclick="event.stopPropagation(); forceRefreshMyGps('${member.id}')" class="flex items-center gap-1 text-blue-600 hover:text-blue-800 cursor-pointer transition" title="Clic para actualizar tu ubicación GPS exacta en este momento">
-              <i class="ph-bold ${member.status === 'walking' ? 'ph-person-simple-walk text-blue-600' : member.status === 'sos' ? 'ph-warning text-red-600' : 'ph-gps-fix text-blue-600'}"></i>
-              <span class="capitalize">${member.status === 'sos' ? '¡SOS!' : member.status === 'walking' ? `${member.speedKmh} km/h` : 'Actualizar GPS'}</span>
+            <div class="flex items-center gap-2.5">
+              <div onclick="event.stopPropagation(); openMemberHistoryModal('${member.id}')" class="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 cursor-pointer transition" title="Ver historial de ubicaciones y rutas (7, 30 o 90 días)">
+                <i class="ph-bold ph-clock-counter-clockwise"></i>
+                <span>Historial</span>
+              </div>
+              <div onclick="event.stopPropagation(); forceRefreshMyGps('${member.id}')" class="flex items-center gap-1 text-blue-600 hover:text-blue-800 cursor-pointer transition" title="Clic para actualizar tu ubicación GPS exacta en este momento">
+                <i class="ph-bold ${member.status === 'walking' ? 'ph-person-simple-walk text-blue-600' : member.status === 'sos' ? 'ph-warning text-red-600' : 'ph-gps-fix text-blue-600'}"></i>
+                <span class="capitalize">${member.status === 'sos' ? '¡SOS!' : member.status === 'walking' ? `${member.speedKmh} km/h` : 'GPS'}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2004,6 +2021,220 @@ function sendDeviceNotification(title, body, type = 'normal', url = '/') {
   }
 }
 
+// ---------------- LOCATION HISTORY VIEWER (7, 30 & 90 DAYS) ----------------
+let currentHistoryMemberId = null;
+let currentHistoryPoints = [];
+let currentHistoryMaxDays = 90;
+let historyPolylineLayer = null;
+let historyPointMarkers = [];
+
+function getLocalHistoryBackup(memberId) {
+  try {
+    const raw = localStorage.getItem(`famsafe_loc_history_${memberId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function appendLocalHistoryBackup(memberId, point) {
+  try {
+    const list = getLocalHistoryBackup(memberId);
+    const last = list[0];
+    const isSame = last && Math.abs(last.lat - point.lat) < 0.0001 && Math.abs(last.lng - point.lng) < 0.0001 && (Date.now() - new Date(last.timestamp).getTime()) < 5 * 60 * 1000;
+    if (isSame) {
+      last.timestamp = point.timestamp;
+      last.address = point.address;
+      last.battery = point.battery;
+    } else {
+      list.unshift(point);
+    }
+    const cutoff = Date.now() - (90 * 24 * 60 * 60 * 1000);
+    const filtered = list.filter(x => new Date(x.timestamp).getTime() >= cutoff).slice(0, 1000);
+    localStorage.setItem(`famsafe_loc_history_${memberId}`, JSON.stringify(filtered));
+  } catch (e) {}
+}
+
+async function openMemberHistoryModal(memberId) {
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) return;
+
+  currentHistoryMemberId = memberId;
+  const planId = state.circle?.plan || 'pro_family';
+  currentHistoryMaxDays = planId === 'guardian_plus' ? 90 : planId === 'pro_family' ? 30 : 7;
+
+  document.getElementById('history-member-avatar').src = member.avatar;
+  document.getElementById('history-member-name').innerText = `Historial: ${member.name}`;
+  const badge = document.getElementById('history-plan-badge');
+  if (badge) {
+    badge.innerText = `Retención: ${currentHistoryMaxDays} Días`;
+  }
+
+  // Ensure current location is in local backup
+  if (member.lastLocation) {
+    appendLocalHistoryBackup(member.id, {
+      id: `loc-${Date.now()}`,
+      lat: member.lastLocation.lat,
+      lng: member.lastLocation.lng,
+      address: member.lastLocation.address || 'Ubicación actual',
+      battery: member.battery || 100,
+      speedKmh: member.speedKmh || 0,
+      status: member.status || 'stationary',
+      timestamp: member.lastLocation.timestamp || new Date().toISOString()
+    });
+  }
+
+  document.getElementById('modal-history')?.classList.remove('hidden');
+  await loadMemberHistoryFilter(currentHistoryMaxDays);
+}
+
+function closeHistoryModal() {
+  document.getElementById('modal-history')?.classList.add('hidden');
+}
+
+async function loadMemberHistoryFilter(days) {
+  if (days > currentHistoryMaxDays) {
+    alert(`Tu plan actual incluye hasta ${currentHistoryMaxDays} días de historial. Mejora a Guardian Plus para desbloquear 90 días.`);
+    return;
+  }
+
+  [1, 7, 30, 90].forEach(d => {
+    const btn = document.getElementById(`hist-filter-${d}`);
+    if (!btn) return;
+    if (d === days) {
+      btn.className = "px-2.5 py-1 rounded-lg bg-white text-blue-600 shadow-sm transition font-extrabold";
+    } else if (d > currentHistoryMaxDays) {
+      btn.className = "px-2.5 py-1 rounded-lg text-slate-300 cursor-not-allowed transition";
+    } else {
+      btn.className = "px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition";
+    }
+  });
+
+  const listEl = document.getElementById('history-timeline-list');
+  const countEl = document.getElementById('history-count-label');
+  if (listEl) listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Cargando bitácora de ubicaciones...</p>`;
+
+  let history = [];
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/members/${currentHistoryMemberId}/history?days=${days}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.history)) {
+        history = data.history;
+      }
+    }
+  } catch (e) {}
+
+  // Merge with local history backup and member.locationHistory
+  const member = state.members.find(m => m.id === currentHistoryMemberId);
+  const localList = getLocalHistoryBackup(currentHistoryMemberId);
+  const memberHist = Array.isArray(member?.locationHistory) ? member.locationHistory : [];
+  const mergedMap = new Map();
+
+  [...history, ...memberHist, ...localList].forEach(item => {
+    if (!item || !item.lat || !item.lng) return;
+    const key = `${Number(item.lat).toFixed(4)}_${Number(item.lng).toFixed(4)}_${new Date(item.timestamp).toISOString().slice(0, 16)}`;
+    if (!mergedMap.has(key)) {
+      mergedMap.set(key, item);
+    }
+  });
+
+  const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
+  currentHistoryPoints = Array.from(mergedMap.values())
+    .filter(p => new Date(p.timestamp).getTime() >= cutoff)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  if (countEl) {
+    countEl.innerText = `${currentHistoryPoints.length} punto(s) registrado(s) en los últimos ${days === 1 ? '24 hrs' : days + ' días'}`;
+  }
+
+  if (!listEl) return;
+  if (currentHistoryPoints.length === 0) {
+    listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">No hay ubicaciones registradas en este periodo.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = '';
+  currentHistoryPoints.forEach((pt, idx) => {
+    const dt = new Date(pt.timestamp);
+    const dateStr = dt.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = dt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+    const row = document.createElement('div');
+    row.className = "p-3 rounded-2xl border border-slate-200 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 transition cursor-pointer flex items-start gap-3";
+    row.onclick = () => {
+      closeHistoryModal();
+      if (window.innerWidth < 768) toggleMobileSheet(false);
+      map.flyTo([pt.lat, pt.lng], 17, { duration: 1.2 });
+    };
+
+    row.innerHTML = `
+      <div class="w-7 h-7 rounded-full ${idx === 0 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'} flex items-center justify-center text-[11px] font-extrabold shrink-0 mt-0.5">
+        ${idx === 0 ? '<i class="ph-bold ph-map-pin"></i>' : idx + 1}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <strong class="text-xs font-bold text-slate-900 truncate">${pt.address || 'Coordenada GPS'}</strong>
+          <span class="text-[10px] font-bold text-blue-600 shrink-0">${dateStr} &bull; ${timeStr}</span>
+        </div>
+        <div class="flex items-center gap-3 mt-1 text-[10px] text-slate-500 font-medium">
+          <span>📍 ${Number(pt.lat).toFixed(5)}, ${Number(pt.lng).toFixed(5)}</span>
+          <span>🔋 ${pt.battery || 100}%</span>
+          <span>🚶 ${pt.speedKmh || 0} km/h</span>
+        </div>
+      </div>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+function clearHistoryPolyline() {
+  if (historyPolylineLayer && map) {
+    map.removeLayer(historyPolylineLayer);
+    historyPolylineLayer = null;
+  }
+  historyPointMarkers.forEach(m => map && map.removeLayer(m));
+  historyPointMarkers = [];
+}
+
+function drawHistoryPolylineOnMap() {
+  clearHistoryPolyline();
+  if (!currentHistoryPoints || currentHistoryPoints.length === 0) {
+    alert("No hay puntos suficientes para trazar la ruta.");
+    return;
+  }
+
+  const latlngs = currentHistoryPoints.map(p => [p.lat, p.lng]);
+  historyPolylineLayer = L.polyline(latlngs, {
+    color: '#2563eb',
+    weight: 4,
+    opacity: 0.85,
+    dashArray: '8, 8'
+  }).addTo(map);
+
+  currentHistoryPoints.forEach((pt, idx) => {
+    const circleMarker = L.circleMarker([pt.lat, pt.lng], {
+      radius: idx === 0 ? 7 : 5,
+      fillColor: idx === 0 ? '#10b981' : '#2563eb',
+      color: '#ffffff',
+      weight: 2,
+      fillOpacity: 1
+    }).addTo(map);
+    const dt = new Date(pt.timestamp).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    circleMarker.bindTooltip(`<strong>${pt.address || 'Punto GPS'}</strong><br>${dt} &bull; 🔋 ${pt.battery || 100}%`);
+    historyPointMarkers.push(circleMarker);
+  });
+
+  closeHistoryModal();
+  if (window.innerWidth < 768) toggleMobileSheet(false);
+
+  if (latlngs.length === 1) {
+    map.flyTo(latlngs[0], 16, { duration: 1.2 });
+  } else {
+    map.fitBounds(L.latLngBounds(latlngs).pad(0.25));
+  }
+}
+
 // Bootstrapping
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
@@ -2014,4 +2245,5 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   setupSocket();
 });
+
 

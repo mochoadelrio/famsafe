@@ -958,6 +958,52 @@
     </div>
   </div>
 
+  <!-- MODAL: HISTORIAL DE RUTAS Y UBICACIONES (7, 30 Y 90 DÍAS) -->
+  <div id="modal-history" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 relative max-h-[88vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <div class="flex items-center gap-3">
+          <img id="history-member-avatar" src="/logo.png" class="w-11 h-11 rounded-full object-cover border-2 border-blue-500">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 id="history-member-name" class="font-extrabold text-sm sm:text-base text-slate-900">Historial de Ubicaciones</h3>
+              <span id="history-plan-badge" class="text-[10px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.5 rounded-full">90 Días</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Bitácora guardada en servidor seguro AWS</p>
+          </div>
+        </div>
+        <button onclick="closeHistoryModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl transition">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Filter Tabs (Hoy, 7d, 30d, 90d) -->
+      <div class="flex items-center justify-between gap-2 shrink-0 flex-wrap">
+        <div class="inline-flex bg-slate-100 p-1 rounded-xl text-[11px] font-bold">
+          <button onclick="loadMemberHistoryFilter(1)" id="hist-filter-1" class="px-2.5 py-1 rounded-lg bg-white text-blue-600 shadow-sm transition">Hoy (24h)</button>
+          <button onclick="loadMemberHistoryFilter(7)" id="hist-filter-7" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">7 Días</button>
+          <button onclick="loadMemberHistoryFilter(30)" id="hist-filter-30" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">30 Días</button>
+          <button onclick="loadMemberHistoryFilter(90)" id="hist-filter-90" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">90 Días</button>
+        </div>
+
+        <button onclick="drawHistoryPolylineOnMap()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+          <i class="ph-bold ph-path text-sm"></i>
+          <span>Ver Ruta en Mapa</span>
+        </button>
+      </div>
+
+      <!-- Timeline List -->
+      <div id="history-timeline-list" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+        <!-- Populated via JS -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+        <span id="history-count-label">0 registros encontrados</span>
+        <button onclick="clearHistoryPolyline(); closeHistoryModal();" class="text-slate-600 hover:text-slate-900 font-bold">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Main JavaScript App -->
   <script src="/app.js"></script>
 </body>

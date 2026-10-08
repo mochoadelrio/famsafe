@@ -217,6 +217,16 @@ app.post('/api/members/:id/battery', (req, res) => {
   res.json({ success: true, member: updated });
 });
 
+// Member Location History Endpoint (7, 30, or 90 days according to subscription plan)
+app.get('/api/members/:id/history', (req, res) => {
+  const days = req.query.days ? parseInt(req.query.days) : null;
+  const result = db.getMemberLocationHistory(req.params.id, days);
+  if (!result) {
+    return res.status(404).json({ error: "Miembro no encontrado" });
+  }
+  res.json({ success: true, ...result });
+});
+
 // Safe Zones Management
 app.post('/api/zones', (req, res) => {
   const { circleId, name, lat, lng, radiusMeters, color, notifyOnEntry, notifyOnExit } = req.body;
