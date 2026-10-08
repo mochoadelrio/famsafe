@@ -26,62 +26,66 @@
   <!-- Custom Styles -->
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body class="bg-slate-100 flex flex-col h-screen overflow-hidden text-slate-800">
+<body class="bg-slate-100 flex flex-col h-[100dvh] overflow-hidden text-slate-800">
 
   <!-- TOP BAR -->
-  <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-20 shadow-sm shrink-0">
-    <div class="flex items-center gap-4">
-      <div class="flex items-center gap-3">
-        <img src="/logo.png" alt="FamSafe" class="w-10 h-10 rounded-xl shadow-md shadow-blue-500/20 object-cover border border-slate-100 shrink-0">
+  <header class="bg-white border-b border-slate-200 px-3 sm:px-6 py-2.5 flex items-center justify-between z-20 shadow-sm shrink-0">
+    <div class="flex items-center gap-2 sm:gap-4">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <img src="/logo.png" alt="FamSafe" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-md shadow-blue-500/20 object-cover border border-slate-100 shrink-0">
         <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-xl font-extrabold tracking-tight text-slate-900">FamSafe</h1>
-            <span class="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">SaaS v1.0</span>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-base sm:text-xl font-extrabold tracking-tight text-slate-900">FamSafe</h1>
+            <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded-full">v1.0</span>
           </div>
-          <p class="text-xs text-slate-500 font-medium">Protección Inteligente y Confidencialidad de los Datos</p>
+          <p class="hidden sm:block text-xs text-slate-500 font-medium truncate max-w-[200px] md:max-w-none">Protección Inteligente y Confidencialidad de los Datos</p>
         </div>
       </div>
 
-      <!-- Live Connection Pill -->
-      <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
+      <!-- Live Connection Pill (hidden on small mobile) -->
+      <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span id="connection-status">Sincronizado en vivo</span>
       </div>
     </div>
 
     <!-- Center/Right Action Bar -->
-    <div class="flex items-center gap-3">
-      <!-- Family Selector & WhatsApp Share Pill -->
-      <div class="flex items-center gap-1.5">
-        <button onclick="openAuthModal()" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 border border-slate-200 transition">
-          <i class="ph-bold ph-users-three text-blue-600 text-sm"></i>
-          <span>Círculo: <strong class="text-slate-900" id="circle-name">Tu Familia</strong></span>
-          <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono font-bold" id="circle-code">---</span>
-        </button>
-        <button onclick="openInviteModal()" class="px-2.5 py-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] rounded-lg border border-[#25D366]/30 text-xs font-bold transition flex items-center gap-1" title="Invitar familiares por WhatsApp">
-          <i class="ph-bold ph-whatsapp-logo text-base"></i>
-          <span class="hidden sm:inline">Invitar</span>
-        </button>
-      </div>
-
-      <!-- SaaS Subscription Pill -->
-      <button onclick="openPricingModal()" class="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-600 hover:to-orange-600 transition">
-        <i class="ph-bold ph-crown text-sm"></i>
-        <span id="plan-badge">Plan Pro ($149 MXN/mes)</span>
+    <div class="flex items-center gap-1.5 sm:gap-3">
+      <!-- Family Selector -->
+      <button onclick="openAuthModal()" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 border border-slate-200 transition">
+        <i class="ph-bold ph-users-three text-blue-600 text-sm"></i>
+        <span class="hidden sm:inline">Círculo: </span>
+        <strong class="text-slate-900 max-w-[70px] sm:max-w-none truncate" id="circle-name">Tu Familia</strong>
+        <span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono font-bold text-[11px]" id="circle-code">---</span>
       </button>
 
+      <!-- WhatsApp Share (desktop) -->
+      <button onclick="openInviteModal()" class="hidden sm:flex px-2.5 py-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] rounded-lg border border-[#25D366]/30 text-xs font-bold transition items-center gap-1" title="Invitar familiares por WhatsApp">
+        <i class="ph-bold ph-whatsapp-logo text-base"></i>
+        <span class="hidden md:inline">Invitar</span>
+      </button>
 
+      <!-- SaaS Subscription Pill (desktop) -->
+      <button onclick="openPricingModal()" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-600 hover:to-orange-600 transition">
+        <i class="ph-bold ph-crown text-sm"></i>
+        <span id="plan-badge">Plan Pro</span>
+      </button>
 
-      <!-- Walk With Me Action Button -->
-      <button onclick="openWalkModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition">
+      <!-- Walk With Me Action Button (desktop) -->
+      <button onclick="openWalkModal()" class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition">
         <i class="ph-bold ph-person-simple-walk text-sm"></i>
         <span>Acompáñame a Casa</span>
       </button>
 
-      <!-- Real SOS Trigger -->
-      <button onclick="triggerRealSos()" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold rounded-lg shadow-md shadow-red-200 transition" title="Activar alerta de pánico SOS para tu familia">
+      <!-- Real SOS Trigger (both mobile & desktop) -->
+      <button onclick="triggerRealSos()" class="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-lg shadow-md shadow-red-200 transition" title="Activar alerta de pánico SOS para tu familia">
         <i class="ph-bold ph-warning-octagon text-sm"></i>
-        <span>EMERGENCIA SOS</span>
+        <span>SOS</span>
+      </button>
+
+      <!-- Mobile Quick Menu Button -->
+      <button onclick="openMobileMenu()" class="md:hidden p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-base border border-slate-200 transition" title="Más opciones">
+        <i class="ph-bold ph-dots-three-vertical"></i>
       </button>
     </div>
   </header>
@@ -138,8 +142,23 @@
   <!-- MAIN WORKSPACE -->
   <div class="flex-1 flex overflow-hidden relative">
 
-    <!-- LEFT SIDEBAR -->
-    <aside class="w-80 md:w-96 bg-white border-r border-slate-200 flex flex-col z-10 shrink-0 shadow-lg">
+    <!-- SIDEBAR ON DESKTOP / BOTTOM SHEET ON MOBILE -->
+    <aside id="sidebar-panel" class="fixed md:static inset-x-0 bottom-14 md:bottom-auto z-30 bg-white rounded-t-3xl md:rounded-none shadow-2xl md:shadow-lg border-t md:border-t-0 md:border-r border-slate-200 flex flex-col transition-all duration-300 md:w-80 lg:w-96 md:h-full max-h-[75vh] md:max-h-none mobile-sheet-collapsed">
+      <!-- Mobile Drag Handle & Header -->
+      <div class="md:hidden flex flex-col items-center pt-2.5 pb-2 px-4 cursor-pointer bg-white rounded-t-3xl border-b border-slate-100 select-none shrink-0" onclick="toggleMobileSheet()">
+        <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1.5"></div>
+        <div class="flex items-center justify-between w-full text-xs font-bold text-slate-700">
+          <span id="mobile-sheet-title" class="flex items-center gap-1.5">
+            <i class="ph-bold ph-users text-blue-600"></i>
+            <span>Familia (<span id="mobile-member-count">1</span> integrantes)</span>
+          </span>
+          <div class="flex items-center gap-1 text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">
+            <span id="mobile-sheet-action-text">Ver Lista</span>
+            <i id="mobile-sheet-chevron" class="ph-bold ph-caret-up text-xs"></i>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabs -->
       <div class="flex border-b border-slate-200 text-xs font-bold text-slate-500">
         <button onclick="switchTab('members')" id="tab-btn-members" class="flex-1 py-3 px-2 border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5">
@@ -367,6 +386,103 @@
       </div>
     </main>
 
+  </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION BAR (FIXED BOTTOM DOCK) -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 h-14 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 flex items-center justify-around px-2 shadow-lg safe-bottom">
+    <button onclick="handleMobileNav('map')" id="nav-btn-map" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-blue-600 transition">
+      <i class="ph-bold ph-map-trifold text-lg"></i>
+      <span>Mapa</span>
+    </button>
+    <button onclick="handleMobileNav('members')" id="nav-btn-members" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition">
+      <i class="ph-bold ph-users text-lg"></i>
+      <span>Familia</span>
+    </button>
+    <button onclick="handleMobileNav('zones')" id="nav-btn-zones" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition">
+      <i class="ph-bold ph-shield-chevron text-lg"></i>
+      <span>Zonas</span>
+    </button>
+    <button onclick="handleMobileNav('alerts')" id="nav-btn-alerts" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition relative">
+      <i class="ph-bold ph-bell text-lg"></i>
+      <span>Alertas</span>
+      <span id="mobile-alert-dot" class="hidden absolute top-1 right-5 w-2 h-2 rounded-full bg-red-500"></span>
+    </button>
+    <button onclick="triggerRealSos()" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-black text-red-600 active:scale-95 transition">
+      <i class="ph-bold ph-warning-octagon text-lg animate-pulse"></i>
+      <span>SOS</span>
+    </button>
+  </nav>
+
+  <!-- MODAL: MOBILE QUICK MENU -->
+  <div id="modal-mobile-menu" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-3.5 relative">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <img src="/logo.png" alt="FamSafe" class="w-8 h-8 rounded-xl object-cover shadow-sm">
+          <div>
+            <h3 class="font-extrabold text-sm text-slate-900">Opciones FamSafe</h3>
+            <p class="text-[10px] text-slate-500" id="mobile-menu-circle-name">Familia Activa</p>
+          </div>
+        </div>
+        <button onclick="closeMobileMenu()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-1.5 text-xs font-semibold">
+        <button onclick="closeMobileMenu(); openPricingModal();" class="w-full p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 flex items-center justify-between transition">
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-crown text-amber-600 text-lg"></i>
+            <div class="text-left">
+              <span class="block font-bold">Planes y Suscripción</span>
+              <span class="text-[10px] text-amber-700 block" id="mobile-menu-plan">Ver características</span>
+            </div>
+          </div>
+          <i class="ph-bold ph-caret-right text-slate-400"></i>
+        </button>
+
+        <button onclick="closeMobileMenu(); shareViaWhatsApp();" class="w-full p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200/80 flex items-center justify-between transition">
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-whatsapp-logo text-emerald-600 text-lg"></i>
+            <div class="text-left">
+              <span class="block font-bold">Invitar por WhatsApp</span>
+              <span class="text-[10px] text-emerald-700 block">Compartir código con tus hijos</span>
+            </div>
+          </div>
+          <i class="ph-bold ph-caret-right text-slate-400"></i>
+        </button>
+
+        <button onclick="closeMobileMenu(); openWalkModal();" class="w-full p-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200/80 flex items-center justify-between transition">
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-person-simple-walk text-indigo-600 text-lg"></i>
+            <div class="text-left">
+              <span class="block font-bold">Acompáñame a Casa</span>
+              <span class="text-[10px] text-indigo-700 block">Temporizador de trayecto seguro</span>
+            </div>
+          </div>
+          <i class="ph-bold ph-caret-right text-slate-400"></i>
+        </button>
+
+        <button onclick="closeMobileMenu(); openAuthModal();" class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-between transition">
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-users-three text-blue-600 text-lg"></i>
+            <div class="text-left">
+              <span class="block font-bold">Cambiar o Crear Familia</span>
+              <span class="text-[10px] text-slate-500 block">Gestionar cuentas y círculos</span>
+            </div>
+          </div>
+          <i class="ph-bold ph-caret-right text-slate-400"></i>
+        </button>
+
+        <button onclick="closeMobileMenu(); centerMapOnCircle();" class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-between transition">
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-crosshair text-slate-600 text-lg"></i>
+            <span class="font-bold">Centrar Mapa en la Familia</span>
+          </div>
+          <i class="ph-bold ph-caret-right text-slate-400"></i>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL: SAAS PRICING & SUBSCRIPTION (EN PESOS MEXICANOS) -->

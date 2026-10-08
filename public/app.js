@@ -294,6 +294,9 @@ function renderMembers() {
   container.innerHTML = '';
   walkSelect.innerHTML = '';
 
+  const mobileCountElem = document.getElementById('mobile-member-count');
+  if (mobileCountElem) mobileCountElem.innerText = state.members.length;
+
   state.members.forEach(member => {
     // Add to Walk Select
     const opt = document.createElement('option');
@@ -480,6 +483,9 @@ function focusMemberOnMap(memberId) {
   const member = state.members.find(m => m.id === memberId);
   if (member && member.lastLocation) {
     map.flyTo([member.lastLocation.lat, member.lastLocation.lng], 16, { duration: 1.2 });
+    if (window.innerWidth < 768) {
+      toggleMobileSheet(false);
+    }
   }
 }
 
@@ -520,7 +526,8 @@ function setupSocket() {
     // Show unread dot if on another tab
     const activeTab = document.getElementById('tab-alerts').classList.contains('hidden');
     if (activeTab) {
-      document.getElementById('unread-alert-badge').classList.remove('hidden');
+      document.getElementById('unread-alert-badge')?.classList.remove('hidden');
+      document.getElementById('mobile-alert-dot')?.classList.remove('hidden');
     }
   });
 
@@ -643,7 +650,90 @@ function switchTab(tab) {
 
   if (tab === 'alerts') {
     document.getElementById('unread-alert-badge')?.classList.add('hidden');
+    document.getElementById('mobile-alert-dot')?.classList.add('hidden');
   }
+}
+
+// Mobile Responsive Sheet & Navigation
+let isMobileSheetExpanded = false;
+
+function toggleMobileSheet(forceState) {
+  const sheet = document.getElementById('sidebar-panel');
+  if (!sheet) return;
+
+  if (typeof forceState === 'boolean') {
+    isMobileSheetExpanded = forceState;
+  } else {
+    isMobileSheetExpanded = !isMobileSheetExpanded;
+  }
+
+  const chevron = document.getElementById('mobile-sheet-chevron');
+  const actionText = document.getElementById('mobile-sheet-action-text');
+
+  sheet.classList.remove('mobile-sheet-hidden');
+
+  if (isMobileSheetExpanded) {
+    sheet.classList.remove('mobile-sheet-collapsed');
+    sheet.classList.add('mobile-sheet-expanded');
+    if (chevron) chevron.className = "ph-bold ph-caret-down text-xs";
+    if (actionText) actionText.innerText = "Ocultar";
+  } else {
+    sheet.classList.remove('mobile-sheet-expanded');
+    sheet.classList.add('mobile-sheet-collapsed');
+    if (chevron) chevron.className = "ph-bold ph-caret-up text-xs";
+    if (actionText) actionText.innerText = "Ver Lista";
+  }
+  if (map) {
+    setTimeout(() => map.invalidateSize(), 320);
+  }
+}
+
+function handleMobileNav(tab) {
+  const navTabs = ['map', 'members', 'zones', 'alerts'];
+  navTabs.forEach(t => {
+    const btn = document.getElementById(`nav-btn-${t}`);
+    if (btn) {
+      if (t === tab) {
+        btn.className = "flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-blue-600 transition";
+      } else {
+        btn.className = "flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition relative";
+      }
+    }
+  });
+
+  const sheet = document.getElementById('sidebar-panel');
+  if (tab === 'map') {
+    // Hide sheet completely to reveal full screen map
+    if (sheet) {
+      sheet.classList.remove('mobile-sheet-expanded');
+      sheet.classList.add('mobile-sheet-collapsed');
+      isMobileSheetExpanded = false;
+    }
+    if (map) {
+      setTimeout(() => {
+        map.invalidateSize();
+        centerMapOnCircle();
+      }, 150);
+    }
+  } else {
+    // Switch tab inside sheet and expand sheet
+    switchTab(tab);
+    toggleMobileSheet(true);
+  }
+}
+
+function openMobileMenu() {
+  const menu = document.getElementById('modal-mobile-menu');
+  if (!menu) return;
+  const circleName = document.getElementById('mobile-menu-circle-name');
+  if (circleName) circleName.innerText = state.circle ? `${state.circle.name} (${state.circle.inviteCode})` : "Sin Familia";
+  const planName = document.getElementById('mobile-menu-plan');
+  if (planName) planName.innerText = state.circle?.subscription?.planName || "Familiar Pro ($79 MXN)";
+  menu.classList.remove('hidden');
+}
+
+function closeMobileMenu() {
+  document.getElementById('modal-mobile-menu')?.classList.add('hidden');
 }
 
 // Real Emergency SOS Action (No simulation)
