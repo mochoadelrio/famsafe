@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FamSafe - Plataforma Familiar de Seguridad y Rastreo en Tiempo Real</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-slate-100 flex flex-col h-screen overflow-hidden text-slate-800">
+
+  <!-- TOP BAR -->
+  <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-20 shadow-sm shrink-0">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
+          <i class="ph-bold ph-shield-check text-2xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-extrabold tracking-tight text-slate-900">FamSafe</h1>
+            <span class="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">SaaS v1.0</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">Protección Inteligente sin Venta de Datos</p>
+        </div>
+      </div>
+
+      <!-- Live Connection Pill -->
+      <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="connection-status">Sincronizado en vivo</span>
+      </div>
+    </div>
+
+    <!-- Center/Right Action Bar -->
+    <div class="flex items-center gap-3">
+      <!-- Invite Code Pill -->
+      <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-medium text-slate-600 border border-slate-200">
+        <i class="ph ph-users-three text-base text-slate-400"></i>
+        <span>Círculo: <strong class="text-slate-900" id="circle-name">Familia García</strong></span>
+        <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-mono font-bold" id="circle-code">FAM789</span>
+      </div>
+
+      <!-- SaaS Subscription Pill -->
+      <button onclick="openPricingModal()" class="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-600 hover:to-orange-600 transition">
+        <i class="ph-bold ph-crown text-sm"></i>
+        <span id="plan-badge">Plan Pro ($7.99/mes)</span>
+      </button>
+
+      <!-- Walk With Me Action Button -->
+      <button onclick="openWalkModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition">
+        <i class="ph-bold ph-person-simple-walk text-sm"></i>
+        <span>Acompáñame a Casa</span>
+      </button>
+
+      <!-- Simulated SOS Trigger -->
+      <button onclick="triggerDemoSos()" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-red-200 transition">
+        <i class="ph-bold ph-warning text-sm"></i>
+        <span>Simular SOS</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- SOS ACTIVE BANNER (HIDDEN BY DEFAULT) -->
+  <div id="sos-active-banner" class="hidden sos-banner text-white px-6 py-2.5 flex items-center justify-between z-30 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center animate-bounce">
+        <i class="ph-bold ph-bell-ringing text-xl"></i>
+      </div>
+      <div>
+        <h2 class="font-extrabold text-sm uppercase tracking-wide" id="sos-banner-title">¡EMERGENCIA SOS ACTIVA!</h2>
+        <p class="text-xs text-red-100 font-medium" id="sos-banner-subtitle">Pánico disparado. Transmitiendo ubicación crítica y audio ambiental.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="playDemoSiren()" class="px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-md transition flex items-center gap-1">
+        <i class="ph-bold ph-speaker-high"></i> Sirena
+      </button>
+      <button onclick="resolveCurrentSos()" class="px-4 py-1.5 bg-white text-red-700 hover:bg-red-50 text-xs font-extrabold rounded-md shadow-sm transition">
+        Marcar Resuelto
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN WORKSPACE -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="w-80 md:w-96 bg-white border-r border-slate-200 flex flex-col z-10 shrink-0 shadow-lg">
+      <!-- Tabs -->
+      <div class="flex border-b border-slate-200 text-xs font-bold text-slate-500">
+        <button onclick="switchTab('members')" id="tab-btn-members" class="flex-1 py-3 px-2 border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-users text-sm"></i>
+          <span>Familia</span>
+        </button>
+        <button onclick="switchTab('zones')" id="tab-btn-zones" class="flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-shield-chevron text-sm"></i>
+          <span>Zonas</span>
+        </button>
+        <button onclick="switchTab('alerts')" id="tab-btn-alerts" class="flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5 relative">
+          <i class="ph-bold ph-bell text-sm"></i>
+          <span>Alertas</span>
+          <span id="unread-alert-badge" class="hidden w-2 h-2 rounded-full bg-red-500"></span>
+        </button>
+        <button onclick="switchTab('sim')" id="tab-btn-sim" class="flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5 text-purple-600">
+          <i class="ph-bold ph-game-controller text-sm"></i>
+          <span>Simulador</span>
+        </button>
+      </div>
+
+      <!-- TAB CONTENT PANELS -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+        <!-- TAB 1: MEMBERS LIST -->
+        <div id="tab-members" class="space-y-3">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <span>Integrantes del Círculo</span>
+            <span class="text-blue-600 cursor-pointer hover:underline" onclick="copyInviteCode()">+ Invitar</span>
+          </div>
+
+          <div id="members-container" class="space-y-2.5">
+            <!-- Dynamic members injected here -->
+          </div>
+        </div>
+
+        <!-- TAB 2: SAFE ZONES -->
+        <div id="tab-zones" class="hidden space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Geocercas Configuradas</span>
+            <button onclick="openNewZoneModal()" class="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded hover:bg-blue-100 transition">
+              + Nueva Zona
+            </button>
+          </div>
+
+          <div id="zones-container" class="space-y-2.5">
+            <!-- Dynamic safe zones injected here -->
+          </div>
+        </div>
+
+        <!-- TAB 3: ALERTS FEED -->
+        <div id="tab-alerts" class="hidden space-y-3">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <span>Historial de Eventos</span>
+            <button onclick="clearAlertsFeed()" class="text-slate-400 hover:text-slate-600 text-xs">Limpiar</button>
+          </div>
+
+          <div id="alerts-container" class="space-y-2">
+            <!-- Dynamic alerts injected here -->
+          </div>
+        </div>
+
+        <!-- TAB 4: LIVE SIMULATOR -->
+        <div id="tab-sim" class="hidden space-y-4">
+          <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-900 leading-relaxed">
+            <strong class="font-bold flex items-center gap-1 mb-1">
+              <i class="ph-bold ph-sparkle text-purple-600"></i> Banco de Pruebas en Tiempo Real
+            </strong>
+            Simula las acciones reales de los teléfonos de los hijos para verificar cómo saltan las notificaciones automáticas, cambios de geocerca y alarmas.
+          </div>
+
+          <!-- Movement Simulator -->
+          <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-sm">
+            <label class="text-xs font-bold text-slate-700 block">Trayecto de Lucas (Hijo - 9 años):</label>
+            <div class="grid grid-cols-1 gap-1.5 text-xs font-semibold">
+              <button onclick="simulateMoveKid('school')" class="w-full py-2 px-3 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded-lg flex items-center justify-between transition">
+                <span>📍 Mover a Colegio San Martín</span>
+                <span class="text-[10px] text-slate-400">Entrada Zona</span>
+              </button>
+              <button onclick="simulateMoveKid('street')" class="w-full py-2 px-3 bg-slate-50 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 rounded-lg flex items-center justify-between transition">
+                <span>🚶 Mover a la Calle (Salida)</span>
+                <span class="text-[10px] text-slate-400">En camino</span>
+              </button>
+              <button onclick="simulateMoveKid('home')" class="w-full py-2 px-3 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-200 rounded-lg flex items-center justify-between transition">
+                <span>🏠 Mover a Casa Familiar</span>
+                <span class="text-[10px] text-slate-400">Llegada a salvo</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Battery Simulator -->
+          <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-sm">
+            <label class="text-xs font-bold text-slate-700 block">Simulador de Batería Crítica:</label>
+            <button onclick="simulateLowBattery('user-sofia-teen', 12)" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold flex items-center justify-between transition">
+              <span>🔋 Bajar Batería de Sofía al 12%</span>
+              <span class="text-[10px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded font-bold">Disparar Alerta</span>
+            </button>
+          </div>
+
+          <!-- Walk With Me Expired Simulator -->
+          <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-sm">
+            <label class="text-xs font-bold text-slate-700 block">Simular Expiración de Trayecto:</label>
+            <button onclick="simulateWalkExpiry()" class="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold flex items-center justify-between transition">
+              <span>⏱️ Expirar 'Acompáñame a Casa'</span>
+              <span class="text-[10px] bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded font-bold">Escalar Alerta</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SIDEBAR FOOTER: PRIVACY GUARANTEE BADGE -->
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center gap-2.5">
+        <i class="ph-fill ph-lock-key text-emerald-600 text-xl shrink-0"></i>
+        <div class="text-[11px] text-slate-500 leading-tight">
+          <strong class="text-slate-700 font-bold block">Privacidad Cero-Venta:</strong>
+          Coordenadas encriptadas de extremo a extremo. Los datos de tus hijos nunca se monetizan.
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT: INTERACTIVE LEAFLET MAP -->
+    <main class="flex-1 h-full relative">
+      <div id="map" class="w-full h-full z-0"></div>
+
+      <!-- Map Floating Overlay Controls -->
+      <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <button onclick="centerMapOnCircle()" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-md border border-slate-200 text-slate-700 hover:text-blue-600 hover:bg-white transition" title="Centrar mapa en la familia">
+          <i class="ph-bold ph-crosshair text-lg"></i>
+        </button>
+        <button onclick="toggleSatelliteView()" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-md border border-slate-200 text-slate-700 hover:text-blue-600 hover:bg-white transition" title="Alternar capa de mapa">
+          <i class="ph-bold ph-map-trifold text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Active Walk With Me Floater Card (If Active) -->
+      <div id="walk-floating-card" class="hidden absolute bottom-6 right-6 z-10 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-indigo-100 w-80 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold uppercase text-indigo-600 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+            Acompáñame a Casa Activo
+          </span>
+          <span class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded" id="walk-timer-display">14:59</span>
+        </div>
+        <div class="text-xs text-slate-700 font-semibold" id="walk-floating-member">Sofía $\to$ Casa Familiar</div>
+        <p class="text-[11px] text-slate-500">Si no se confirma la llegada antes de cero, se enviará alerta con la ruta.</p>
+        <button onclick="completeCurrentWalk()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+          Confirmar Llegada a Salvo
+        </button>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- MODAL: SAAS PRICING & SUBSCRIPTION -->
+  <div id="modal-pricing" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-4xl w-full p-8 shadow-2xl border border-slate-200 space-y-6 relative max-h-[90vh] overflow-y-auto">
+      <button onclick="closePricingModal()" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 text-xl font-bold">
+        <i class="ph-bold ph-x"></i>
+      </button>
+
+      <div class="text-center space-y-2">
+        <span class="bg-blue-100 text-blue-700 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">Modelo de Negocio SaaS</span>
+        <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900">Planes de Suscripción para Familias</h2>
+        <p class="text-slate-500 text-sm max-w-xl mx-auto">Una sola suscripción cubre a toda la familia. Sin cobros por hijo extra y con cero venta de datos.</p>
+      </div>
+
+      <!-- Pricing Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        <!-- Free Tier -->
+        <div class="border border-slate-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-lg transition">
+          <div class="space-y-4">
+            <h3 class="font-bold text-slate-900 text-lg">Plan Gratuito</h3>
+            <div class="text-3xl font-extrabold text-slate-900">$0 <span class="text-xs font-normal text-slate-500">/mes</span></div>
+            <p class="text-xs text-slate-500">Ideal para conocer la app con lo básico.</p>
+            <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Hasta 2 integrantes</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> 1 Zona Segura</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Alerta de batería baja</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Historial de 48 horas</li>
+            </ul>
+          </div>
+          <button onclick="selectPlan('freemium')" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition">
+            Continuar Gratis
+          </button>
+        </div>
+
+        <!-- Pro Family Tier (Recommended) -->
+        <div class="border-2 border-blue-600 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative bg-blue-50/20">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider">
+            Más Popular
+          </div>
+          <div class="space-y-4">
+            <h3 class="font-bold text-slate-900 text-lg">Familiar Pro</h3>
+            <div class="text-3xl font-extrabold text-slate-900">$7.99 <span class="text-xs font-normal text-slate-500">USD / mes</span></div>
+            <p class="text-xs text-slate-500">Tranquilidad completa para toda la familia.</p>
+            <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-blue-100">
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> <strong>Hasta 10 integrantes</strong></li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> <strong>Zonas Seguras ilimitadas</strong></li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Acompáñame a Casa (Walk With Me)</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Modo Privacidad Adolescente</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Historial de 30 días</li>
+            </ul>
+          </div>
+          <button onclick="selectPlan('pro_family')" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition">
+            Activar Plan Pro
+          </button>
+        </div>
+
+        <!-- Guardian Plus Tier -->
+        <div class="border border-purple-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-lg transition bg-purple-50/20">
+          <div class="space-y-4">
+            <h3 class="font-bold text-slate-900 text-lg">Guardian Plus</h3>
+            <div class="text-3xl font-extrabold text-slate-900">$14.99 <span class="text-xs font-normal text-slate-500">USD / mes</span></div>
+            <p class="text-xs text-slate-500">Protección infantil de grado élite con IA.</p>
+            <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-purple-100">
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Todo lo del Plan Pro</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> <strong>Audio ambiental en vivo en SOS</strong></li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Detección de impacto vehicular</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Detección de desvío de ruta por IA</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Historial de 90 días</li>
+            </ul>
+          </div>
+          <button onclick="selectPlan('guardian_plus')" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-md shadow-purple-200 transition">
+            Activar Guardian Plus
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD NEW SAFE ZONE -->
+  <div id="modal-zone" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 text-base">Crear Nueva Zona Segura</h3>
+        <button onclick="closeNewZoneModal()" class="text-slate-400 hover:text-slate-600 font-bold"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <form id="form-new-zone" onsubmit="handleCreateZone(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nombre de la Zona (Ej. Casa de los Abuelos):</label>
+          <input type="text" id="zone-name-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre descriptivo">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Latitud:</label>
+            <input type="number" step="any" id="zone-lat-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs" value="40.4150">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Longitud:</label>
+            <input type="number" step="any" id="zone-lng-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs" value="-3.7050">
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Radio del Perímetro: <span id="radius-val" class="text-blue-600 font-bold">150m</span></label>
+          <input type="range" id="zone-radius-input" min="50" max="600" step="25" value="150" class="w-full" oninput="document.getElementById('radius-val').innerText = this.value + 'm'">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Color del Perímetro:</label>
+          <div class="flex gap-2">
+            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="zone-color" value="#10b981" checked> <span class="w-4 h-4 rounded-full bg-emerald-500 inline-block"></span> Verde</label>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="zone-color" value="#3b82f6"> <span class="w-4 h-4 rounded-full bg-blue-500 inline-block"></span> Azul</label>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="zone-color" value="#8b5cf6"> <span class="w-4 h-4 rounded-full bg-purple-500 inline-block"></span> Morado</label>
+          </div>
+        </div>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeNewZoneModal()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-600">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg">Guardar Zona</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: WALK WITH ME (ACOMPÁÑAME A CASA) -->
+  <div id="modal-walk" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 text-base flex items-center gap-1.5">
+          <i class="ph-bold ph-person-simple-walk text-indigo-600 text-xl"></i>
+          Iniciar 'Acompáñame a Casa'
+        </h3>
+        <button onclick="closeWalkModal()" class="text-slate-400 hover:text-slate-600 font-bold"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <form id="form-walk" onsubmit="handleStartWalk(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Miembro que inicia trayecto:</label>
+          <select id="walk-member-select" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Destino esperado:</label>
+          <input type="text" id="walk-dest-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs" value="Casa Familiar">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Tiempo estimado del trayecto:</label>
+          <select id="walk-time-select" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold">
+            <option value="5">5 minutos</option>
+            <option value="10">10 minutos</option>
+            <option value="15" selected>15 minutos</option>
+            <option value="30">30 minutos</option>
+          </select>
+        </div>
+        <p class="text-[11px] text-slate-500">Un temporizador visible se activará en el móvil del familiar. Si el tiempo expira sin confirmación, toda la familia recibirá una alarma con su última ruta.</p>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeWalkModal()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-600">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">Activar Protección de Trayecto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App -->
+  <script src="/app.js"></script>
+</body>
+</html>
