@@ -86,6 +86,34 @@
     </div>
   </header>
 
+  <!-- SUBSCRIPTION EXPIRING SOON BANNER (<= 3 DAYS) -->
+  <div id="subscription-expiring-banner" class="hidden bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-white px-6 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-30 shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        <i class="ph-bold ph-clock-countdown text-xl animate-pulse"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-amber-100">Aviso de Suscripción</span>
+          <h2 class="font-black text-sm" id="sub-banner-title">¡Tu suscripción está por vencer!</h2>
+        </div>
+        <p class="text-xs text-amber-100 font-medium mt-0.5" id="sub-banner-desc">
+          Vence el <strong id="sub-banner-date" class="text-white underline">--</strong>. Tu nuevo periodo comenzará en esa misma fecha sin perder días restantes.
+        </p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="handleBannerUpgradeClick()" class="px-3.5 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 border border-white/30">
+        <i class="ph-bold ph-sparkle text-sm"></i>
+        <span>Mejorar Plan (Upgrade)</span>
+      </button>
+      <button onclick="handleBannerRenewClick()" class="px-4 py-1.5 bg-white text-orange-600 hover:bg-orange-50 text-xs font-extrabold rounded-xl shadow-md transition flex items-center gap-1.5">
+        <i class="ph-bold ph-arrows-clockwise text-sm"></i>
+        <span>Renovar Plan</span>
+      </button>
+    </div>
+  </div>
+
   <!-- SOS ACTIVE BANNER (HIDDEN BY DEFAULT) -->
   <div id="sos-active-banner" class="hidden sos-banner text-white px-6 py-2.5 flex items-center justify-between z-30 shadow-lg">
     <div class="flex items-center gap-3">

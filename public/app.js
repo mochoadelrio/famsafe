@@ -181,6 +181,7 @@ async function fetchCircleData() {
     renderMapElements();
     checkActiveSos();
     checkActiveWalks();
+    checkSubscriptionExpiration();
   } catch (err) {
     console.error("Error fetching circle data:", err);
     renderEmptyCircleState();
@@ -188,10 +189,60 @@ async function fetchCircleData() {
   }
 }
 
+function checkSubscriptionExpiration() {
+  const banner = document.getElementById('subscription-expiring-banner');
+  if (!banner) return;
+  if (!state.circle || !state.circle.subscription) {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  const renewsAt = state.circle.subscription.renewsAt;
+  if (!renewsAt) {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  const renewsDate = new Date(renewsAt);
+  const now = new Date();
+  const diffMs = renewsDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 3600 * 24));
+
+  // If 3 days or fewer remaining (or already expired diffDays <= 0)
+  if (diffDays <= 3) {
+    const formattedDate = renewsDate.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    const titleElem = document.getElementById('sub-banner-title');
+    const dateElem = document.getElementById('sub-banner-date');
+    const descElem = document.getElementById('sub-banner-desc');
+
+    if (diffDays <= 0) {
+      if (titleElem) titleElem.innerText = `¡Tu suscripción ha vencido hoy!`;
+      if (descElem) descElem.innerHTML = `Venció el <strong class="text-white underline">${formattedDate}</strong>. Renueva ahora o haz un Upgrade: tu nuevo periodo se reactivará de inmediato manteniendo a tu familia segura.`;
+    } else if (diffDays === 1) {
+      if (titleElem) titleElem.innerText = `¡Tu suscripción vence mañana!`;
+      if (descElem) descElem.innerHTML = `Vence el <strong class="text-white underline">${formattedDate}</strong>. Si renuevas hoy, tu nuevo periodo empezará exactamente el <strong class="text-white underline">${formattedDate}</strong> sin perder días.`;
+    } else {
+      if (titleElem) titleElem.innerText = `¡Tu suscripción está por vencer en ${diffDays} días!`;
+      if (descElem) descElem.innerHTML = `Vence el <strong class="text-white underline">${formattedDate}</strong>. Renueva o mejora tu plan: tu periodo se extenderá a partir de dicha fecha sin perder días.`;
+    }
+
+    if (dateElem) dateElem.innerText = formattedDate;
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
 function renderEmptyCircleState() {
   document.getElementById('circle-name').innerText = "Sin Círculo Activo";
   document.getElementById('circle-code').innerText = "------";
   document.getElementById('plan-badge').innerText = "Crear Familia";
+  document.getElementById('subscription-expiring-banner')?.classList.add('hidden');
 
   const container = document.getElementById('members-container');
   container.innerHTML = `
@@ -228,7 +279,7 @@ function renderHeader() {
   document.getElementById('circle-name').innerText = state.circle.name;
   document.getElementById('circle-code').innerText = state.circle.inviteCode;
 
-  const plan = state.currentPlan || { name: "Plan Pro ($149 MXN/mes)" };
+  const plan = state.currentPlan || { name: "Plan Pro ($79 MXN/mes)" };
   document.getElementById('plan-badge').innerText = plan.name;
 }
 
@@ -530,6 +581,23 @@ function setupSocket() {
     state.circle = circle;
     state.currentPlan = plan;
     renderHeader();
+    checkSubscriptionExpiration();
+  });
+
+  socket.on('circle:subscription_updated', (circle) => {
+    if (state.circle && state.circle.id === circle.id) {
+      state.circle = circle;
+      renderHeader();
+      checkSubscriptionExpiration();
+    }
+  });
+
+  socket.on('subscription:renewed', ({ circle }) => {
+    if (state.circle && state.circle.id === circle.id) {
+      state.circle = circle;
+      renderHeader();
+      checkSubscriptionExpiration();
+    }
   });
 }
 
@@ -657,14 +725,28 @@ function playDemoSiren() {
 }
 
 // Modal Handlers
+// Modal Handlers
 let modalBillingPeriod = 'monthly';
+let currentCheckoutMode = 'standard'; // 'standard' | 'renewal' | 'upgrade'
+let pricingModalContext = 'standard';
 
-function openPricingModal() {
-  document.getElementById('modal-pricing').classList.remove('hidden');
+function openPricingModal(context = 'standard') {
+  pricingModalContext = context;
+  document.getElementById('modal-pricing')?.classList.remove('hidden');
 }
 
 function closePricingModal() {
-  document.getElementById('modal-pricing').classList.add('hidden');
+  document.getElementById('modal-pricing')?.classList.add('hidden');
+  pricingModalContext = 'standard';
+}
+
+function handleBannerRenewClick() {
+  const currentPlan = state.circle?.plan || 'pro_family';
+  openCheckoutModal(currentPlan, 'renewal');
+}
+
+function handleBannerUpgradeClick() {
+  openPricingModal('upgrade');
 }
 
 function setModalBillingPeriod(period) {
@@ -728,8 +810,9 @@ function setModalBillingPeriod(period) {
 let currentCheckoutPlan = null;
 let currentValidatedPayment = null;
 
-function openCheckoutModal(planId) {
+function openCheckoutModal(planId, mode = 'standard') {
   closePricingModal();
+  currentCheckoutMode = mode;
   const isAnnual = modalBillingPeriod === 'annual';
   
   let planName = 'Familiar Pro';
@@ -756,7 +839,15 @@ function openCheckoutModal(planId) {
   currentValidatedPayment = null;
 
   const planNameElem = document.getElementById('checkout-plan-name');
-  if (planNameElem) planNameElem.innerText = `${planName} (${planPrice})`;
+  if (planNameElem) {
+    if (mode === 'renewal') {
+      planNameElem.innerText = `Renovación: ${planName} (${planPrice})`;
+    } else if (mode === 'upgrade') {
+      planNameElem.innerText = `Mejora (Upgrade): ${planName} (${planPrice})`;
+    } else {
+      planNameElem.innerText = `${planName} (${planPrice})`;
+    }
+  }
   
   const planPriceElem = document.getElementById('checkout-plan-price');
   if (planPriceElem) planPriceElem.innerText = isAnnual ? `$${amount} MXN / año` : `$${amount} MXN / mes`;
@@ -777,7 +868,13 @@ function openCheckoutModal(planId) {
 
   const btnProceedText = document.getElementById('btn-proceed-text');
   if (btnProceedText) {
-    btnProceedText.innerText = CURRENT_CIRCLE_ID ? "Activar Mi Plan en FamSafe" : "Continuar al Registro Familiar";
+    if (mode === 'renewal') {
+      btnProceedText.innerText = "Confirmar y Renovar Suscripción";
+    } else if (mode === 'upgrade') {
+      btnProceedText.innerText = "Activar Mejora (Upgrade) Inmediata";
+    } else {
+      btnProceedText.innerText = CURRENT_CIRCLE_ID ? "Activar Mi Plan en FamSafe" : "Continuar al Registro Familiar";
+    }
   }
 
   document.getElementById('modal-checkout')?.classList.remove('hidden');
@@ -788,7 +885,8 @@ function closeCheckoutModal() {
 }
 
 function selectPlan(planId) {
-  openCheckoutModal(planId);
+  const mode = (pricingModalContext === 'upgrade') ? 'upgrade' : (pricingModalContext === 'renewal') ? 'renewal' : (CURRENT_CIRCLE_ID && state.circle ? 'upgrade' : 'standard');
+  openCheckoutModal(planId, mode);
 }
 
 function copyCheckoutClabe() {
@@ -887,7 +985,42 @@ async function proceedToFamilyRegistrationAfterPayment() {
   }
 
   if (CURRENT_CIRCLE_ID && state.circle) {
-    // Already in a circle -> Upgrade directly with paymentToken
+    if (currentCheckoutMode === 'renewal') {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/billing/renew`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            circleId: CURRENT_CIRCLE_ID,
+            planId: currentCheckoutPlan.planId,
+            billingPeriod: currentCheckoutPlan.billingPeriod,
+            paymentToken: currentValidatedPayment.paymentToken
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Error al renovar suscripción.");
+        }
+        closeCheckoutModal();
+        await fetchCircleData();
+        const formattedDate = new Date(data.previousRenewsAt).toLocaleDateString('es-MX', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        });
+        const formattedNewDate = new Date(data.newRenewsAt).toLocaleDateString('es-MX', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        });
+        alert(`🎉 ¡Suscripción Renovada con Éxito!\n\nTu comprobante SPEI ha sido certificado ante Banxico CEP.\n\n📅 Tu nuevo periodo comenzará en la fecha ${formattedDate} (en que vence tu suscripción vigente) y vencerá el ${formattedNewDate}.\n\n¡Gracias por mantener protegida a tu familia con FamSafe!`);
+      } catch (err) {
+        alert("Error al renovar suscripción: " + err.message);
+      }
+      return;
+    }
+
+    // Upgrade mode or standard plan activation
     try {
       const res = await fetch(`${BACKEND_URL}/api/billing/upgrade`, {
         method: 'POST',
@@ -900,11 +1033,12 @@ async function proceedToFamilyRegistrationAfterPayment() {
         })
       });
       const data = await res.json();
-      if (data.success) {
-        closeCheckoutModal();
-        await fetchCircleData();
-        alert(`🎉 ¡Pago certificado por Banxico CEP! Tu plan ${currentCheckoutPlan.planName} ha sido activado y registrado en el Panel de Administración.`);
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Error al activar suscripción.");
       }
+      closeCheckoutModal();
+      await fetchCircleData();
+      alert(`🚀 ¡Plan Mejorado (Upgrade) con Éxito!\n\nTu pago ha sido certificado por Banxico CEP. Tu familia ahora cuenta con ${currentCheckoutPlan.planName} y todos sus beneficios activos.`);
     } catch (err) {
       alert("Error al activar suscripción: " + err.message);
     }

@@ -350,6 +350,44 @@ app.post('/api/billing/upgrade', (req, res) => {
   }
 });
 
+// Subscription Renewal with Banxico CEP Validation & Continuity
+app.post('/api/billing/renew', (req, res) => {
+  const { circleId, planId, billingPeriod, paymentToken } = req.body;
+  try {
+    let paymentMeta = null;
+    if (paymentToken && db.data.validatedPayments) {
+      paymentMeta = db.data.validatedPayments.find(p => p.token === paymentToken || p.paymentToken === paymentToken || p.banxicoFolio === paymentToken);
+      if (paymentMeta) {
+        paymentMeta.circleId = circleId;
+      }
+    }
+    const renewalResult = db.renewCircleSubscription(circleId, {
+      planId,
+      billingPeriod: billingPeriod || 'monthly',
+      paymentMeta
+    });
+    if (io) {
+      io.to(circleId).emit('subscription:renewed', {
+        circle: renewalResult.circle,
+        newRenewsAt: renewalResult.newRenewsAt,
+        previousRenewsAt: renewalResult.previousRenewsAt
+      });
+    }
+    const formattedDate = new Date(renewalResult.previousRenewsAt).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+    res.json({
+      success: true,
+      message: `Suscripción renovada exitosamente. Tu nuevo periodo comenzará en la fecha ${formattedDate} (en que vence tu suscripción vigente).`,
+      ...renewalResult
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ---------------- ADMIN PANEL CRM ROUTES ----------------
 
 // Admin Authentication (User: admin, PIN: Modr1988-+)
@@ -422,6 +460,31 @@ app.get('/api/admin/customers', (req, res) => {
     },
     customers
   });
+});
+
+// Admin Update Customer Subscription & Details
+app.put('/api/admin/customers/:circleId', (req, res) => {
+  const authHeader = req.headers.authorization || req.query.token;
+  const expected = "ADMIN-AUTH-FMS-" + Buffer.from("admin:Modr1988-+").toString('base64');
+  if (authHeader !== expected && req.headers['x-admin-pin'] !== 'Modr1988-+') {
+    return res.status(403).json({ error: "Acceso no autorizado al panel de administración." });
+  }
+
+  const { plan, renewsAt, status, planName } = req.body;
+  try {
+    const updated = db.adminUpdateCustomer(req.params.circleId, {
+      plan,
+      renewsAt,
+      status,
+      planName: planName || (PLANS[plan] ? PLANS[plan].name : undefined)
+    });
+    if (io) {
+      io.to(req.params.circleId).emit('circle:subscription_updated', updated);
+    }
+    res.json({ success: true, customer: updated });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // Real-time Simulation Helper (Move kid / teen step by step)

@@ -399,6 +399,51 @@ class Database {
     });
     this.save();
   }
+
+  renewCircleSubscription(circleId, { planId, billingPeriod = 'monthly', paymentMeta = null }) {
+    const circle = this.getCircleById(circleId);
+    if (!circle) throw new Error("Círculo no encontrado.");
+
+    if (!circle.subscription) {
+      circle.subscription = { status: "active", planName: "Familiar Pro ($79 MXN/mes)", renewsAt: new Date().toISOString() };
+    }
+
+    const currentRenewsAtMs = new Date(circle.subscription.renewsAt || circle.createdAt).getTime();
+    const nowMs = Date.now();
+    // If current subscription is still active in future, add time starting from expiration date!
+    const baseMs = currentRenewsAtMs > nowMs ? currentRenewsAtMs : nowMs;
+    const addedDays = billingPeriod === 'annual' ? 365 : 30;
+    const newRenewsAt = new Date(baseMs + addedDays * 24 * 3600 * 1000).toISOString();
+
+    const targetPlan = planId || circle.plan || 'pro_family';
+    circle.plan = targetPlan;
+    circle.subscription.status = "active";
+    circle.subscription.renewsAt = newRenewsAt;
+    if (paymentMeta) {
+      circle.subscription.paymentMeta = paymentMeta;
+    }
+
+    this.save();
+    return {
+      circle,
+      previousRenewsAt: new Date(currentRenewsAtMs).toISOString(),
+      newRenewsAt
+    };
+  }
+
+  adminUpdateCustomer(circleId, { plan, renewsAt, status, planName }) {
+    const circle = this.getCircleById(circleId);
+    if (!circle) throw new Error("Círculo no encontrado.");
+
+    if (plan) circle.plan = plan;
+    if (!circle.subscription) circle.subscription = {};
+    if (status) circle.subscription.status = status;
+    if (renewsAt) circle.subscription.renewsAt = new Date(renewsAt).toISOString();
+    if (planName) circle.subscription.planName = planName;
+
+    this.save();
+    return circle;
+  }
 }
 
 export const db = new Database();
