@@ -279,14 +279,14 @@ function renderMembers() {
 
           <!-- Battery & Status Bar -->
           <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-[10px] font-semibold text-slate-500">
-            <div class="flex items-center gap-1.5">
-              <i class="ph-bold ${member.battery <= 20 ? 'ph-battery-warning text-red-500' : 'ph-battery-charging text-slate-400'}"></i>
+            <div onclick="event.stopPropagation(); calibrateMemberBattery('${member.id}', ${member.battery})" title="Batería: ${member.battery}%. Clic para calibrar manualmente." class="flex items-center gap-1.5 cursor-pointer hover:text-blue-600 transition">
+              <i class="ph-bold ${member.battery <= 20 ? 'ph-battery-warning text-red-500' : member.isCharging ? 'ph-battery-charging text-emerald-500' : 'ph-battery-high text-slate-400'}"></i>
               <span>${member.battery}%</span>
               <div class="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div class="h-full ${batteryColor}" style="width: ${member.battery}%"></div>
               </div>
             </div>
-            <div class="flex items-center gap-1 text-slate-600">
+            <div class="flex items-center gap-1 text-slate-600" title="${member.status === 'stationary' ? 'Estacionario: el dispositivo está detenido en este lugar (0 km/h)' : member.status === 'walking' ? 'En movimiento' : 'Alerta SOS'}">
               <i class="ph-bold ${member.status === 'walking' ? 'ph-person-simple-walk text-blue-600' : member.status === 'sos' ? 'ph-warning text-red-600' : 'ph-map-pin text-slate-400'}"></i>
               <span class="capitalize">${member.status === 'sos' ? '¡SOS!' : member.status === 'walking' ? `${member.speedKmh} km/h` : 'Estacionario'}</span>
             </div>
@@ -1281,12 +1281,65 @@ async function handleLoginUser(e) {
   }
 }
 
-// Socket listener for new member joining in realtime
-// (placed inside setupSocket)
+// Battery Calibration and Live Device Battery Sync
+async function calibrateMemberBattery(memberId, currentVal) {
+  const newVal = prompt("Calibrar nivel de batería de este dispositivo (% de 1 a 100):", currentVal || 32);
+  if (newVal === null) return;
+  const num = parseInt(newVal);
+  if (isNaN(num) || num < 1 || num > 100) {
+    alert("Por favor ingresa un porcentaje válido entre 1 y 100.");
+    return;
+  }
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/members/${memberId}/battery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ battery: num, isCharging: false })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const m = state.members.find(x => x.id === memberId);
+      if (m) {
+        m.battery = num;
+        renderMembers();
+      }
+    }
+  } catch (err) {
+    console.error("Error al actualizar batería:", err);
+  }
+}
+
+function initLiveBatterySync() {
+  if ('getBattery' in navigator) {
+    navigator.getBattery().then(battery => {
+      const sync = () => {
+        const level = Math.round(battery.level * 100);
+        const isCharging = battery.charging;
+        const myMember = state.members.find(m => m.role === 'guardian');
+        if (myMember && (myMember.battery !== level || myMember.isCharging !== isCharging)) {
+          myMember.battery = level;
+          myMember.isCharging = isCharging;
+          renderMembers();
+          fetch(`${BACKEND_URL}/api/members/${myMember.id}/battery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ battery: level, isCharging })
+          }).catch(() => {});
+        }
+      };
+      sync();
+      battery.addEventListener('levelchange', sync);
+      battery.addEventListener('chargingchange', sync);
+    }).catch(() => {});
+  }
+}
 
 // Bootstrapping
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
-  fetchCircleData();
+  fetchCircleData().then(() => {
+    initLiveBatterySync();
+  });
   setupSocket();
 });
+

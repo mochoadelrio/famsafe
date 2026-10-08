@@ -183,6 +183,27 @@ app.post('/api/telemetry', (req, res) => {
   res.json({ success: true, result });
 });
 
+// Quick Member Battery Calibration Endpoint
+app.post('/api/members/:id/battery', (req, res) => {
+  const { battery, isCharging } = req.body;
+  const member = db.getMemberById(req.params.id);
+  if (!member) {
+    return res.status(404).json({ error: "Miembro no encontrado" });
+  }
+
+  const parsedBattery = Math.max(1, Math.min(100, parseInt(battery) || 50));
+  const updated = db.updateMemberBattery(member.id, parsedBattery, !!isCharging);
+
+  if (io) {
+    io.to(member.circleId).emit('member:location_update', {
+      member: updated,
+      alerts: []
+    });
+  }
+
+  res.json({ success: true, member: updated });
+});
+
 // Safe Zones Management
 app.post('/api/zones', (req, res) => {
   const { circleId, name, lat, lng, radiusMeters, color, notifyOnEntry, notifyOnExit } = req.body;

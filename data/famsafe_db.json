@@ -1,0 +1,78 @@
+{
+  "circles": [
+    {
+      "id": "circle-1791444529610-680",
+      "name": "Familia Ochoa González",
+      "inviteCode": "FAM985",
+      "plan": "pro_family",
+      "subscription": {
+        "status": "active",
+        "planName": "Plan Familiar Pro ($149 MXN/mes)",
+        "renewsAt": "2026-11-07T07:28:49.610Z"
+      },
+      "createdAt": "2026-10-08T07:28:49.610Z"
+    }
+  ],
+  "members": [
+    {
+      "id": "member-1791444529610-guardian",
+      "circleId": "circle-1791444529610-680",
+      "name": "Manuel Ochoa (Tutor)",
+      "role": "guardian",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "phone": "",
+      "battery": 32,
+      "isCharging": false,
+      "status": "stationary",
+      "speedKmh": 0,
+      "privacyMode": "standard",
+      "lastLocation": {
+        "lat": 21.09174118855901,
+        "lng": -101.59912459329634,
+        "accuracy": 10,
+        "timestamp": "2026-10-08T07:28:49.610Z",
+        "address": "Casa Familiar (Ubicación GPS)"
+      }
+    }
+  ],
+  "safeZones": [
+    {
+      "id": "zone-1791444529610-home",
+      "circleId": "circle-1791444529610-680",
+      "name": "Casa Familiar",
+      "icon": "home",
+      "lat": 21.09174118855901,
+      "lng": -101.59912459329634,
+      "radiusMeters": 150,
+      "color": "#10b981",
+      "notifyOnEntry": true,
+      "notifyOnExit": true
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alert-1791444529610-2",
+      "timestamp": "2026-10-08T07:28:49.610Z",
+      "read": false,
+      "circleId": "circle-1791444529610-680",
+      "memberId": "member-1791444529610-guardian",
+      "type": "circle_created",
+      "title": "🎉 ¡Bienvenidos a FamSafe!",
+      "message": "Círculo 'Familia Ochoa González' creado exitosamente. Tu código de invitación es FAM985."
+    }
+  ],
+  "users": [
+    {
+      "id": "user-1791444529610",
+      "email": "m.ochoa.delrio@gmail.com",
+      "password": "almamoma",
+      "name": "Manuel Ochoa",
+      "circleId": "circle-1791444529610-680",
+      "memberId": "member-1791444529610-guardian",
+      "role": "guardian",
+      "createdAt": "2026-10-08T07:28:49.610Z"
+    }
+  ],
+  "activeWalkSessions": [],
+  "activeSosSessions": []
+}
