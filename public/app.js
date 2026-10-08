@@ -1,4 +1,7 @@
-// Global State
+// Global State & Backend Resolution
+const BACKEND_URL = window.location.hostname.includes('vercel.app')
+  ? 'https://famsafe.onrender.com'
+  : '';
 const CURRENT_CIRCLE_ID = "circle-garcia-001";
 let socket;
 let map;
@@ -67,7 +70,7 @@ function initMap() {
 // Fetch Full Initial State from Backend
 async function fetchCircleData() {
   try {
-    const res = await fetch(`/api/circles/${CURRENT_CIRCLE_ID}`);
+    const res = await fetch(`${BACKEND_URL}/api/circles/${CURRENT_CIRCLE_ID}`);
     const data = await res.json();
     state = data;
 
@@ -292,7 +295,7 @@ function centerMapOnCircle() {
 
 // WebSockets Connection & Event Listeners
 function setupSocket() {
-  socket = io();
+  socket = io(BACKEND_URL || undefined);
 
   socket.on('connect', () => {
     document.getElementById('connection-status').innerText = 'Sincronizado en vivo';
@@ -417,7 +420,7 @@ function switchTab(tab) {
 
 // Simulator Actions
 async function simulateMoveKid(target) {
-  await fetch('/api/simulation/move-kid', {
+  await fetch(`${BACKEND_URL}/api/simulation/move-kid', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ memberId: 'user-lucas-child', target })
@@ -426,7 +429,7 @@ async function simulateMoveKid(target) {
 }
 
 async function simulateLowBattery(memberId, battery) {
-  await fetch('/api/telemetry', {
+  await fetch(`${BACKEND_URL}/api/telemetry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -439,7 +442,7 @@ async function simulateLowBattery(memberId, battery) {
 }
 
 async function triggerDemoSos() {
-  await fetch('/api/sos/trigger', {
+  await fetch(`${BACKEND_URL}/api/sos/trigger', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -452,7 +455,7 @@ async function triggerDemoSos() {
 async function resolveCurrentSos() {
   if (state.activeSos.length === 0) return;
   const current = state.activeSos[0];
-  await fetch('/api/sos/resolve', {
+  await fetch(`${BACKEND_URL}/api/sos/resolve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sosId: current.id })
@@ -474,7 +477,7 @@ function closePricingModal() {
 
 async function selectPlan(planId) {
   try {
-    const res = await fetch('/api/billing/upgrade', {
+    const res = await fetch(`${BACKEND_URL}/api/billing/upgrade', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ circleId: CURRENT_CIRCLE_ID, planId })
@@ -505,7 +508,7 @@ async function handleCreateZone(e) {
   const color = document.querySelector('input[name="zone-color"]:checked').value;
 
   try {
-    const res = await fetch('/api/zones', {
+    const res = await fetch(`${BACKEND_URL}/api/zones', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -549,7 +552,7 @@ async function handleStartWalk(e) {
   const destinationName = document.getElementById('walk-dest-input').value;
   const estimatedMinutes = parseInt(document.getElementById('walk-time-select').value);
 
-  await fetch('/api/walk/start', {
+  await fetch(`${BACKEND_URL}/api/walk/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ memberId, destinationName, estimatedMinutes })
@@ -561,7 +564,7 @@ async function handleStartWalk(e) {
 async function completeCurrentWalk() {
   if (state.activeWalks.length === 0) return;
   const current = state.activeWalks[0];
-  await fetch('/api/walk/finish', {
+  await fetch(`${BACKEND_URL}/api/walk/finish', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId: current.id })
@@ -570,7 +573,7 @@ async function completeCurrentWalk() {
 
 async function simulateWalkExpiry() {
   // Start a 1-second walk to trigger expiry immediately
-  const res = await fetch('/api/walk/start', {
+  const res = await fetch(`${BACKEND_URL}/api/walk/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
