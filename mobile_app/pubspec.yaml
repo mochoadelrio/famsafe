@@ -1,0 +1,46 @@
+name: famsafe_mobile
+description: FamSafe - App Móvil de Seguridad Familiar y Rastreo GPS en Tiempo Real
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Conexión en tiempo real con Render backend
+  socket_io_client: ^2.0.3+1
+  http: ^1.2.1
+
+  # Motor de rastreo en segundo plano con ahorro extremo de batería
+  flutter_background_geolocation: ^4.14.0
+
+  # Mapas nativos fluidos
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # Notificaciones Push y Autenticación con Google/Apple
+  firebase_core: ^2.30.0
+  firebase_messaging: ^14.8.0
+  firebase_auth: ^4.19.0
+
+  # Pasarela de Suscripciones In-App (Apple App Store & Google Play)
+  purchases_flutter: ^8.1.0
+
+  # Sensores, batería y reproducción de alertas de audio
+  battery_plus: ^5.0.3
+  audioplayers: ^6.0.0
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/sounds/
