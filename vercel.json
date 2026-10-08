@@ -11,31 +11,23 @@
     },
     {
       "source": "/app",
-      "destination": "/public/index.html"
+      "destination": "/index.html"
     },
     {
       "source": "/admin",
-      "destination": "/public/admin.html"
+      "destination": "/admin.html"
     },
     {
       "source": "/landing",
-      "destination": "/public/landing.html"
+      "destination": "/landing.html"
     },
     {
       "source": "/privacidad",
-      "destination": "/public/privacidad.html"
+      "destination": "/privacidad.html"
     },
     {
       "source": "/terminos",
-      "destination": "/public/terminos.html"
-    },
-    {
-      "source": "/",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
+      "destination": "/terminos.html"
     }
   ]
 }
