@@ -279,8 +279,12 @@ function renderHeader() {
   document.getElementById('circle-name').innerText = state.circle.name;
   document.getElementById('circle-code').innerText = state.circle.inviteCode;
 
-  const plan = state.currentPlan || { name: "Plan Pro ($79 MXN/mes)" };
-  document.getElementById('plan-badge').innerText = plan.name;
+  if (state.circle.subscription?.isLifetime || !state.circle.subscription?.renewsAt || state.circle.subscription?.isFounder) {
+    document.getElementById('plan-badge').innerText = state.circle.subscription?.planName || "Guardian Plus (Vitalicio)";
+  } else {
+    const plan = state.currentPlan || { name: "Plan Pro ($79 MXN/mes)" };
+    document.getElementById('plan-badge').innerText = plan.name;
+  }
 }
 
 // Render Family Members in Sidebar

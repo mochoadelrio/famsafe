@@ -234,9 +234,17 @@
           </select>
         </div>
 
-        <div>
+        <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700/80 space-y-2">
+          <label class="flex items-center gap-2 text-xs font-bold text-amber-400 cursor-pointer">
+            <input type="checkbox" id="edit-is-lifetime" onchange="toggleEditLifetime(this.checked)" class="w-4 h-4 rounded bg-slate-900 border-slate-600 text-blue-600 focus:ring-0">
+            <span>Suscripción Vitalicia (Nunca vence / $0 Facturados)</span>
+          </label>
+          <p class="text-[10px] text-slate-400">Activa esta opción para cuentas de propietario, fundadores o cortesías sin fecha de expiración.</p>
+        </div>
+
+        <div id="edit-date-container">
           <label class="block text-xs font-bold text-slate-300 mb-1">Fecha de Vencimiento / Renovación</label>
-          <input type="date" id="edit-renews-date" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white font-semibold outline-none focus:border-blue-500">
+          <input type="date" id="edit-renews-date" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white font-semibold outline-none focus:border-blue-500">
           <p class="text-[10px] text-slate-500 mt-1">Puedes ajustar esta fecha para simular que faltan 3 días para su vencimiento.</p>
         </div>
 
@@ -381,10 +389,15 @@
         tr.className = "hover:bg-slate-750/30 transition";
 
         const start = new Date(c.startDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-        const end = new Date(c.renewsAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+        const isLifetime = c.isLifetime || !c.renewsAt || c.isFounder;
+        const end = isLifetime 
+          ? `<span class="text-emerald-400 font-extrabold flex items-center gap-1"><i class="ph-bold ph-infinity"></i> Vitalicio (Nunca vence)</span>`
+          : new Date(c.renewsAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
         
         let planBadge = '';
-        if (c.plan === 'basic') {
+        if (c.isFounder) {
+          planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Plan Fundador (Vitalicio)</span>`;
+        } else if (c.plan === 'basic') {
           planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-200 border border-slate-600">Básico ($29 MXN)</span>`;
         } else if (c.plan === 'guardian_plus') {
           planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">Guardian Plus ($149 MXN)</span>`;
@@ -392,9 +405,34 @@
           planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">Familiar Pro ($79 MXN)</span>`;
         }
 
+        const priceText = (c.amountPaidMxn === 0 || isLifetime) 
+          ? `<span class="text-emerald-400 font-bold">$0 MXN (Cuenta Propietario)</span>` 
+          : `$${c.amountPaidMxn} MXN / ${c.billingPeriod === 'annual' ? 'año' : 'mes'}`;
+
+        const cepCell = (c.isFounder || (isLifetime && c.amountPaidMxn === 0))
+          ? `
+            <div class="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
+              <i class="ph-bold ph-crown"></i>
+              <span>Cuenta Propietario</span>
+            </div>
+            <div class="font-mono text-[10px] text-slate-400">Sin facturación / Cortesía</div>
+          `
+          : `
+            <div class="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px]">
+              <i class="ph-bold ph-seal-check"></i>
+              <span>${c.banxicoFolio}</span>
+            </div>
+            <div class="font-mono text-[10px] text-slate-400 truncate max-w-[140px]" title="Clave de Rastreo: ${c.trackingKey}">
+              Rastreo: ${c.trackingKey}
+            </div>
+          `;
+
         tr.innerHTML = `
           <td class="py-3 px-4">
-            <div class="font-bold text-white">${c.familyName}</div>
+            <div class="font-bold text-white flex items-center gap-1.5">
+              <span>${c.familyName}</span>
+              ${c.isFounder ? '<span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-extrabold uppercase">Fundador</span>' : ''}
+            </div>
             <div class="text-[11px] text-slate-400">Tutor: ${c.parentName} (${c.membersCount} integrantes)</div>
           </td>
           <td class="py-3 px-4">
@@ -406,20 +444,14 @@
           </td>
           <td class="py-3 px-4">
             <div>${planBadge}</div>
-            <div class="text-[10px] text-slate-400 mt-1 font-semibold">$${c.amountPaidMxn} MXN / ${c.billingPeriod === 'annual' ? 'año' : 'mes'}</div>
+            <div class="text-[10px] text-slate-400 mt-1 font-semibold">${priceText}</div>
           </td>
           <td class="py-3 px-4">
             <div class="text-slate-300"><strong class="text-white">Inicio:</strong> ${start}</div>
-            <div class="text-slate-400 text-[11px]"><strong class="text-emerald-400">Fin / Renueva:</strong> ${end}</div>
+            <div class="text-slate-400 text-[11px] mt-0.5"><strong class="text-emerald-400">Fin / Renueva:</strong> ${end}</div>
           </td>
           <td class="py-3 px-4">
-            <div class="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px]">
-              <i class="ph-bold ph-seal-check"></i>
-              <span>${c.banxicoFolio}</span>
-            </div>
-            <div class="font-mono text-[10px] text-slate-400 truncate max-w-[140px]" title="Clave de Rastreo: ${c.trackingKey}">
-              Rastreo: ${c.trackingKey}
-            </div>
+            ${cepCell}
           </td>
           <td class="py-3 px-4 text-center">
             <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
@@ -443,6 +475,17 @@
       });
     }
 
+    function toggleEditLifetime(isLifetime) {
+      const dateContainer = document.getElementById('edit-date-container');
+      const dateInput = document.getElementById('edit-renews-date');
+      if (isLifetime) {
+        dateContainer.classList.add('opacity-40', 'pointer-events-none');
+        dateInput.required = false;
+      } else {
+        dateContainer.classList.remove('opacity-40', 'pointer-events-none');
+      }
+    }
+
     function openEditCustomerModal(circleId) {
       const customer = allCustomers.find(c => c.circleId === circleId);
       if (!customer) return;
@@ -452,12 +495,19 @@
       document.getElementById('edit-customer-subtitle').innerText = `ID: ${customer.circleId} • Código: ${customer.inviteCode}`;
       document.getElementById('edit-plan-select').value = customer.plan || 'pro_family';
       
-      // Format renewsAt for date input (YYYY-MM-DD)
-      const renewsDate = new Date(customer.renewsAt);
-      const yyyy = renewsDate.getFullYear();
-      const mm = String(renewsDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(renewsDate.getDate()).padStart(2, '0');
-      document.getElementById('edit-renews-date').value = `${yyyy}-${mm}-${dd}`;
+      const isLifetime = customer.isLifetime || !customer.renewsAt || customer.isFounder;
+      document.getElementById('edit-is-lifetime').checked = isLifetime;
+      toggleEditLifetime(isLifetime);
+
+      if (customer.renewsAt) {
+        const renewsDate = new Date(customer.renewsAt);
+        const yyyy = renewsDate.getFullYear();
+        const mm = String(renewsDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(renewsDate.getDate()).padStart(2, '0');
+        document.getElementById('edit-renews-date').value = `${yyyy}-${mm}-${dd}`;
+      } else {
+        document.getElementById('edit-renews-date').value = '';
+      }
 
       document.getElementById('edit-status-select').value = customer.status || 'active';
       document.getElementById('edit-error-msg').classList.add('hidden');
@@ -473,14 +523,15 @@
       e.preventDefault();
       const circleId = document.getElementById('edit-circle-id').value;
       const plan = document.getElementById('edit-plan-select').value;
+      const isLifetime = document.getElementById('edit-is-lifetime').checked;
       const renewsDateVal = document.getElementById('edit-renews-date').value;
       const status = document.getElementById('edit-status-select').value;
       const errorDiv = document.getElementById('edit-error-msg');
       const submitBtn = document.getElementById('btn-save-customer');
       const token = sessionStorage.getItem(ADMIN_STORAGE_KEY);
 
-      if (!renewsDateVal) {
-        errorDiv.innerText = "Por favor selecciona una fecha de renovación.";
+      if (!isLifetime && !renewsDateVal) {
+        errorDiv.innerText = "Por favor selecciona una fecha de renovación o marca la casilla Vitalicia.";
         errorDiv.classList.remove('hidden');
         return;
       }
@@ -489,7 +540,7 @@
       submitBtn.innerHTML = `<i class="ph-bold ph-spinner animate-spin"></i><span>Guardando...</span>`;
 
       try {
-        const renewsAtIso = new Date(renewsDateVal + 'T23:59:59Z').toISOString();
+        const renewsAtIso = isLifetime ? null : new Date(renewsDateVal + 'T23:59:59Z').toISOString();
         const res = await fetch(`/api/admin/customers/${circleId}`, {
           method: 'PUT',
           headers: {
@@ -499,6 +550,7 @@
           body: JSON.stringify({
             plan,
             renewsAt: renewsAtIso,
+            isLifetime,
             status
           })
         });

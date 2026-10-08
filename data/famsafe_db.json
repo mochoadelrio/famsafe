@@ -4,11 +4,14 @@
       "id": "circle-1791444529610-680",
       "name": "Familia Ochoa González",
       "inviteCode": "FAM985",
-      "plan": "pro_family",
+      "plan": "guardian_plus",
       "subscription": {
         "status": "active",
-        "planName": "Familiar Pro ($79 MXN/mes)",
-        "renewsAt": "2026-10-10T09:05:48.298Z"
+        "isLifetime": true,
+        "isFounder": true,
+        "planName": "Guardian Plus (Vitalicio Fundador)",
+        "renewsAt": null,
+        "paymentMeta": null
       },
       "createdAt": "2026-10-08T07:28:49.610Z"
     }
@@ -70,33 +73,12 @@
       "circleId": "circle-1791444529610-680",
       "memberId": "member-1791444529610-guardian",
       "role": "guardian",
+      "isFounder": true,
+      "isOwner": true,
       "createdAt": "2026-10-08T07:28:49.610Z"
     }
   ],
   "activeWalkSessions": [],
   "activeSosSessions": [],
-  "validatedPayments": [
-    {
-      "id": "pay-1791449412523-431",
-      "createdAt": "2026-10-08T08:50:12.523Z",
-      "trackingKey": "STP20261008001",
-      "banxicoFolio": "CEP-MUZAQ5D7-9837",
-      "operationDate": "2026-10-08",
-      "amount": 79,
-      "senderBank": "BBVA México",
-      "recipientBank": "Mercado Pago Wallet (STP)",
-      "recipientClabe": "722969010283746519",
-      "recipientName": "Manuel Ochoa del Río",
-      "planId": "pro_family",
-      "planName": "Familiar Pro ($79 MXN/mes)",
-      "billingPeriod": "monthly",
-      "circleId": "circle-1791444529610-680",
-      "circleName": "Familia Ochoa González",
-      "status": "APPROVED_BANXICO_CEP",
-      "certNumber": "00000100000702819201",
-      "digitalSignature": "C99D81B85374CBD4D12F5F4881621F13E88008A82128E5E4DBA570ED6D0799D8",
-      "hasReceiptFile": false,
-      "validatedAt": "2026-10-08T08:50:12.523Z"
-    }
-  ]
+  "validatedPayments": []
 }

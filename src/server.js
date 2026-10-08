@@ -422,8 +422,13 @@ app.get('/api/admin/customers', (req, res) => {
     const circleMembers = members.filter(m => m.circleId === circle.id);
     const circlePayment = payments.find(p => p.circleId === circle.id) || circle.subscription?.paymentMeta || {};
 
-    const planKey = circle.plan || 'pro_family';
-    const planInfo = PLANS[planKey] || { name: circle.subscription?.planName || planKey, priceMxn: 79 };
+    const isFounder = !!(circle.subscription?.isFounder || adminUser.isFounder || adminUser.email === 'm.ochoa.delrio@gmail.com');
+    const isLifetime = !!(circle.subscription?.isLifetime || isFounder || circle.subscription?.renewsAt === null);
+
+    const planKey = circle.plan || 'guardian_plus';
+    const planInfo = PLANS[planKey] || { name: circle.subscription?.planName || planKey, priceMxn: 149 };
+
+    const amountPaid = (isFounder || isLifetime) ? 0 : (circlePayment.amount || planInfo.priceMxn);
 
     return {
       circleId: circle.id,
@@ -433,21 +438,23 @@ app.get('/api/admin/customers', (req, res) => {
       phone: guardianMember.phone || "No registrado",
       inviteCode: circle.inviteCode,
       plan: planKey,
-      planName: circle.subscription?.planName || planInfo.name,
+      planName: isFounder ? "Guardian Plus (Vitalicio Fundador)" : (circle.subscription?.planName || planInfo.name),
       startDate: circle.createdAt,
-      renewsAt: circle.subscription?.renewsAt || new Date(new Date(circle.createdAt).getTime() + 30 * 24 * 3600 * 1000).toISOString(),
+      renewsAt: isLifetime ? null : (circle.subscription?.renewsAt || new Date(new Date(circle.createdAt).getTime() + 30 * 24 * 3600 * 1000).toISOString()),
+      isLifetime,
+      isFounder,
       status: circle.subscription?.status || "active",
       membersCount: circleMembers.length,
-      amountPaidMxn: circlePayment.amount || planInfo.priceMxn,
-      billingPeriod: circlePayment.billingPeriod || "monthly",
-      banxicoFolio: circlePayment.banxicoFolio || "SPEI-VERIFICADO",
-      trackingKey: circlePayment.trackingKey || "MANUAL-APROBADO",
-      senderBank: circlePayment.senderBank || "STP / Mercado Pago",
-      validatedAt: circlePayment.validatedAt || circle.createdAt
+      amountPaidMxn: amountPaid,
+      billingPeriod: isLifetime ? "vitalicio" : (circlePayment.billingPeriod || "monthly"),
+      banxicoFolio: isFounder ? "CUENTA PROPIETARIO" : (circlePayment.banxicoFolio || "SPEI-VERIFICADO"),
+      trackingKey: isFounder ? "CORTESÍA FUNDADOR" : (circlePayment.trackingKey || "MANUAL-APROBADO"),
+      senderBank: isFounder ? "Cortesía Fundador" : (circlePayment.senderBank || "STP / Mercado Pago"),
+      validatedAt: isFounder ? null : (circlePayment.validatedAt || circle.createdAt)
     };
   });
 
-  const totalRevenueMxn = customers.reduce((sum, c) => sum + (c.amountPaidMxn || 0), 0);
+  const totalRevenueMxn = customers.reduce((sum, c) => sum + (c.isLifetime || c.isFounder ? 0 : (c.amountPaidMxn || 0)), 0);
   const activeSubs = customers.filter(c => c.status === 'active').length;
 
   res.json({
@@ -470,13 +477,14 @@ app.put('/api/admin/customers/:circleId', (req, res) => {
     return res.status(403).json({ error: "Acceso no autorizado al panel de administración." });
   }
 
-  const { plan, renewsAt, status, planName } = req.body;
+  const { plan, renewsAt, status, planName, isLifetime } = req.body;
   try {
     const updated = db.adminUpdateCustomer(req.params.circleId, {
       plan,
       renewsAt,
       status,
-      planName: planName || (PLANS[plan] ? PLANS[plan].name : undefined)
+      planName: planName || (PLANS[plan] ? PLANS[plan].name : undefined),
+      isLifetime
     });
     if (io) {
       io.to(req.params.circleId).emit('circle:subscription_updated', updated);

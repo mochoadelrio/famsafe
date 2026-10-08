@@ -431,14 +431,30 @@ class Database {
     };
   }
 
-  adminUpdateCustomer(circleId, { plan, renewsAt, status, planName }) {
+  adminUpdateCustomer(circleId, { plan, renewsAt, status, planName, isLifetime }) {
     const circle = this.getCircleById(circleId);
     if (!circle) throw new Error("Círculo no encontrado.");
 
     if (plan) circle.plan = plan;
     if (!circle.subscription) circle.subscription = {};
     if (status) circle.subscription.status = status;
-    if (renewsAt) circle.subscription.renewsAt = new Date(renewsAt).toISOString();
+    
+    if (isLifetime !== undefined) {
+      circle.subscription.isLifetime = isLifetime;
+      if (isLifetime) {
+        circle.subscription.renewsAt = null;
+      }
+    }
+    
+    if (renewsAt !== undefined) {
+      if (!renewsAt || renewsAt === 'null' || renewsAt === 'vitalicio') {
+        circle.subscription.renewsAt = null;
+        circle.subscription.isLifetime = true;
+      } else {
+        circle.subscription.renewsAt = new Date(renewsAt).toISOString();
+        circle.subscription.isLifetime = false;
+      }
+    }
     if (planName) circle.subscription.planName = planName;
 
     this.save();
