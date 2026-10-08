@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: famsafe-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 3005
+      - key: NODE_ENV
+        value: production
