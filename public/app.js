@@ -11,6 +11,9 @@ let socket;
 let map;
 let memberMarkers = {}; // id -> L.marker
 let zoneCircles = {};   // id -> L.circle
+let previewZoneMarker = null;
+let previewZoneCircle = null;
+let isZonePickingActive = false;
 let state = {
   circle: null,
   members: [],
@@ -695,10 +698,273 @@ async function selectPlan(planId) {
 
 function openNewZoneModal() {
   document.getElementById('modal-zone').classList.remove('hidden');
+  document.getElementById('zone-pick-banner').classList.remove('hidden');
+  isZonePickingActive = true;
+
+  // Determine initial coordinates: userLiveCoords -> first safezone -> map center -> fallback
+  let initLat = 19.4326;
+  let initLng = -99.1332;
+
+  if (userLiveCoords) {
+    initLat = userLiveCoords.lat;
+    initLng = userLiveCoords.lng;
+  } else if (state.safeZones.length > 0) {
+    initLat = state.safeZones[0].lat;
+    initLng = state.safeZones[0].lng;
+  } else if (map) {
+    const center = map.getCenter();
+    initLat = center.lat;
+    initLng = center.lng;
+  }
+
+  document.getElementById('zone-lat-input').value = initLat.toFixed(6);
+  document.getElementById('zone-lng-input').value = initLng.toFixed(6);
+
+  const radius = parseInt(document.getElementById('zone-radius-input').value) || 150;
+  const color = document.querySelector('input[name="zone-color"]:checked')?.value || '#10b981';
+
+  updateOrCreateZonePreview(initLat, initLng, radius, color);
+
+  if (map) {
+    map.on('click', handleMapClickForZone);
+    map.panTo([initLat, initLng]);
+  }
 }
 
 function closeNewZoneModal() {
   document.getElementById('modal-zone').classList.add('hidden');
+  document.getElementById('zone-pick-banner').classList.add('hidden');
+  isZonePickingActive = false;
+
+  if (map) {
+    map.off('click', handleMapClickForZone);
+    if (previewZoneMarker) {
+      map.removeLayer(previewZoneMarker);
+      previewZoneMarker = null;
+    }
+    if (previewZoneCircle) {
+      map.removeLayer(previewZoneCircle);
+      previewZoneCircle = null;
+    }
+  }
+
+  clearZoneSearch();
+}
+
+function updateOrCreateZonePreview(lat, lng, radius, color) {
+  if (!map) return;
+
+  const previewIcon = L.divIcon({
+    html: `
+      <div class="flex items-center justify-center -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing">
+        <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl border-2 border-white ring-4 ring-blue-500/30">
+          <i class="ph-bold ph-shield-check text-xl"></i>
+        </div>
+      </div>
+    `,
+    className: '',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  });
+
+  if (previewZoneMarker) {
+    previewZoneMarker.setLatLng([lat, lng]);
+  } else {
+    previewZoneMarker = L.marker([lat, lng], { icon: previewIcon, draggable: true }).addTo(map);
+    previewZoneMarker.bindTooltip("<strong>📍 Mueve o arrastra aquí</strong>", { permanent: false, direction: 'top' });
+
+    previewZoneMarker.on('drag', (e) => {
+      const pos = e.target.getLatLng();
+      if (previewZoneCircle) previewZoneCircle.setLatLng(pos);
+      document.getElementById('zone-lat-input').value = pos.lat.toFixed(6);
+      document.getElementById('zone-lng-input').value = pos.lng.toFixed(6);
+    });
+
+    previewZoneMarker.on('dragend', (e) => {
+      const pos = e.target.getLatLng();
+      reverseGeocodeZone(pos.lat, pos.lng);
+    });
+  }
+
+  if (previewZoneCircle) {
+    previewZoneCircle.setLatLng([lat, lng]);
+    previewZoneCircle.setRadius(radius);
+    previewZoneCircle.setStyle({ color, fillColor: color });
+  } else {
+    previewZoneCircle = L.circle([lat, lng], {
+      radius: radius || 150,
+      color: color || '#10b981',
+      fillColor: color || '#10b981',
+      fillOpacity: 0.25,
+      weight: 2,
+      dashArray: '6, 6'
+    }).addTo(map);
+  }
+}
+
+function handleMapClickForZone(e) {
+  if (!isZonePickingActive) return;
+  const lat = e.latlng.lat;
+  const lng = e.latlng.lng;
+
+  document.getElementById('zone-lat-input').value = lat.toFixed(6);
+  document.getElementById('zone-lng-input').value = lng.toFixed(6);
+
+  const radius = parseInt(document.getElementById('zone-radius-input').value) || 150;
+  const color = document.querySelector('input[name="zone-color"]:checked')?.value || '#10b981';
+
+  updateOrCreateZonePreview(lat, lng, radius, color);
+  reverseGeocodeZone(lat, lng);
+}
+
+function updateZonePreviewRadius(radius) {
+  document.getElementById('radius-val').innerText = `${radius}m`;
+  if (previewZoneCircle) {
+    previewZoneCircle.setRadius(parseInt(radius));
+  }
+}
+
+function updateZonePreviewColor(color) {
+  if (previewZoneCircle) {
+    previewZoneCircle.setStyle({ color, fillColor: color });
+  }
+}
+
+function onManualCoordsChange() {
+  const lat = parseFloat(document.getElementById('zone-lat-input').value);
+  const lng = parseFloat(document.getElementById('zone-lng-input').value);
+  if (!isNaN(lat) && !isNaN(lng)) {
+    const radius = parseInt(document.getElementById('zone-radius-input').value) || 150;
+    const color = document.querySelector('input[name="zone-color"]:checked')?.value || '#10b981';
+    updateOrCreateZonePreview(lat, lng, radius, color);
+    if (map) map.panTo([lat, lng]);
+  }
+}
+
+function setZoneToCurrentLocation() {
+  if (userLiveCoords) {
+    applyZoneCoords(userLiveCoords.lat, userLiveCoords.lng, "Mi Ubicación Actual");
+  } else if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        applyZoneCoords(pos.coords.latitude, pos.coords.longitude, "Mi Ubicación Actual");
+      },
+      () => alert("No se pudo obtener la ubicación GPS.")
+    );
+  }
+}
+
+function focusZoneOnMap() {
+  const lat = parseFloat(document.getElementById('zone-lat-input').value);
+  const lng = parseFloat(document.getElementById('zone-lng-input').value);
+  if (!isNaN(lat) && !isNaN(lng) && map) {
+    map.flyTo([lat, lng], 16, { duration: 1.2 });
+  }
+}
+
+function applyZoneCoords(lat, lng, suggestedName) {
+  document.getElementById('zone-lat-input').value = parseFloat(lat).toFixed(6);
+  document.getElementById('zone-lng-input').value = parseFloat(lng).toFixed(6);
+
+  const radius = parseInt(document.getElementById('zone-radius-input').value) || 150;
+  const color = document.querySelector('input[name="zone-color"]:checked')?.value || '#10b981';
+
+  updateOrCreateZonePreview(lat, lng, radius, color);
+
+  if (map) {
+    map.flyTo([lat, lng], 16, { duration: 1.2 });
+  }
+
+  if (suggestedName && !document.getElementById('zone-name-input').value.trim()) {
+    document.getElementById('zone-name-input').value = suggestedName;
+  }
+}
+
+async function searchZoneLocation() {
+  const input = document.getElementById('zone-search-input');
+  const query = input.value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('zone-search-btn');
+  const resultsContainer = document.getElementById('zone-search-results');
+  btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i><span>...</span>';
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&addressdetails=1`);
+    const results = await res.json();
+
+    resultsContainer.innerHTML = '';
+    if (!results || results.length === 0) {
+      resultsContainer.innerHTML = `
+        <div class="p-3 text-center text-slate-500">
+          <p class="font-bold text-xs">No se encontraron resultados</p>
+          <p class="text-[10px]">Prueba con otra calle, colegio o referencia</p>
+        </div>
+      `;
+      resultsContainer.classList.remove('hidden');
+      return;
+    }
+
+    results.forEach(item => {
+      const row = document.createElement('div');
+      row.className = "p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-start gap-2.5";
+      const shortName = item.name || item.display_name.split(',')[0];
+      const addressDetail = item.display_name.split(',').slice(1, 4).join(',').trim();
+
+      row.innerHTML = `
+        <div class="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+          <i class="ph-bold ph-map-pin text-xs"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-slate-800 text-xs truncate">${shortName}</div>
+          <div class="text-[10px] text-slate-500 truncate">${addressDetail}</div>
+        </div>
+      `;
+
+      row.onclick = () => {
+        applyZoneCoords(item.lat, item.lon, shortName);
+        input.value = shortName;
+        document.getElementById('zone-search-clear').classList.remove('hidden');
+        resultsContainer.classList.add('hidden');
+      };
+
+      resultsContainer.appendChild(row);
+    });
+
+    resultsContainer.classList.remove('hidden');
+    document.getElementById('zone-search-clear').classList.remove('hidden');
+  } catch (err) {
+    alert("Error buscando ubicación: " + err.message);
+  } finally {
+    btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i><span>Buscar</span>';
+  }
+}
+
+function clearZoneSearch() {
+  document.getElementById('zone-search-input').value = '';
+  document.getElementById('zone-search-clear').classList.add('hidden');
+  document.getElementById('zone-search-results').classList.add('hidden');
+  document.getElementById('zone-search-results').innerHTML = '';
+}
+
+async function reverseGeocodeZone(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    if (data && data.display_name) {
+      const nameInput = document.getElementById('zone-name-input');
+      const parts = data.display_name.split(',');
+      const placeName = parts[0].trim();
+      if (!nameInput.value.trim()) {
+        nameInput.value = placeName;
+      }
+      const searchInput = document.getElementById('zone-search-input');
+      searchInput.value = parts.slice(0, 3).join(',').trim();
+      document.getElementById('zone-search-clear').classList.remove('hidden');
+    }
+  } catch (e) {
+    // ignore network errors
+  }
 }
 
 async function handleCreateZone(e) {
@@ -707,7 +973,7 @@ async function handleCreateZone(e) {
   const lat = parseFloat(document.getElementById('zone-lat-input').value);
   const lng = parseFloat(document.getElementById('zone-lng-input').value);
   const radiusMeters = parseInt(document.getElementById('zone-radius-input').value);
-  const color = document.querySelector('input[name="zone-color"]:checked').value;
+  const color = document.querySelector('input[name="zone-color"]:checked')?.value || '#10b981';
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/zones`, {
@@ -729,6 +995,7 @@ async function handleCreateZone(e) {
       return;
     }
     closeNewZoneModal();
+    await fetchCircleData();
   } catch (err) {
     alert("Error creando zona: " + err.message);
   }
@@ -737,6 +1004,7 @@ async function handleCreateZone(e) {
 async function deleteSafeZone(zoneId) {
   if (confirm("¿Deseas eliminar esta zona segura?")) {
     await fetch(`${BACKEND_URL}/api/zones/${zoneId}`, { method: 'DELETE' });
+    await fetchCircleData();
   }
 }
 

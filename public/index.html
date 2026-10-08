@@ -234,6 +234,131 @@
     <main class="flex-1 h-full relative">
       <div id="map" class="w-full h-full z-0"></div>
 
+      <!-- Hint Banner for Picking on Map -->
+      <div id="zone-pick-banner" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-blue-600 text-white px-4 py-2 rounded-full shadow-xl text-xs font-bold flex items-center gap-2 pointer-events-none animate-pulse">
+        <i class="ph-bold ph-crosshair text-sm"></i>
+        <span>Haz clic en el mapa para ubicar la zona segura</span>
+      </div>
+
+      <!-- FLOATING PANEL: CREAR NUEVA ZONA SEGURA -->
+      <div id="modal-zone" class="hidden absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-md rounded-2xl max-w-sm w-full p-4.5 shadow-2xl border border-slate-200 space-y-3.5 max-h-[92vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+              <i class="ph-bold ph-shield-chevron text-base"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 text-sm">Nueva Zona Segura</h3>
+          </div>
+          <button type="button" onclick="closeNewZoneModal()" class="text-slate-400 hover:text-slate-600 font-bold p-1">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <!-- Buscador de Lugares / Direcciones -->
+        <div class="relative">
+          <label class="block font-bold text-slate-700 text-xs mb-1">Buscar lugar o dirección:</label>
+          <div class="flex gap-1.5">
+            <div class="relative flex-1">
+              <input type="text" id="zone-search-input" onkeydown="if(event.key==='Enter'){event.preventDefault();searchZoneLocation();}" class="w-full pl-8 pr-7 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej. Colegio, parque, calle...">
+              <i class="ph-bold ph-magnifying-glass absolute left-2.5 top-2.5 text-slate-400"></i>
+              <button type="button" id="zone-search-clear" onclick="clearZoneSearch()" class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                <i class="ph-bold ph-x text-xs"></i>
+              </button>
+            </div>
+            <button type="button" onclick="searchZoneLocation()" id="zone-search-btn" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 transition shadow-sm">
+              <i class="ph-bold ph-magnifying-glass"></i>
+              <span>Buscar</span>
+            </button>
+          </div>
+          <div id="zone-search-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-50 text-xs divide-y divide-slate-100">
+            <!-- Search items injected here -->
+          </div>
+        </div>
+
+        <!-- Botones de ayuda de selección -->
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="setZoneToCurrentLocation()" class="py-1.5 px-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1 transition border border-slate-200">
+            <i class="ph-bold ph-navigation-arrow text-blue-600"></i>
+            <span>Mi Ubicación</span>
+          </button>
+          <button type="button" onclick="focusZoneOnMap()" class="py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1 transition border border-blue-200">
+            <i class="ph-bold ph-crosshair"></i>
+            <span>Ver en Mapa</span>
+          </button>
+        </div>
+
+        <div class="p-2 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-center gap-2 text-[11px] text-blue-800">
+          <i class="ph-bold ph-hand-pointing text-base text-blue-600 shrink-0"></i>
+          <span>Haz clic en el mapa o arrastra el marcador para fijar la ubicación exacta.</span>
+        </div>
+
+        <form id="form-new-zone" onsubmit="handleCreateZone(event)" class="space-y-3 text-xs">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nombre de la Zona Segura:</label>
+            <input type="text" id="zone-name-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej. Colegio San Martín, Casa de los Abuelos">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Latitud:</label>
+              <input type="number" step="any" id="zone-lat-input" required class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-mono" onchange="onManualCoordsChange()">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Longitud:</label>
+              <input type="number" step="any" id="zone-lng-input" required class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-mono" onchange="onManualCoordsChange()">
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-bold text-slate-700">Radio de Seguridad:</label>
+              <span id="radius-val" class="text-blue-600 font-bold font-mono bg-blue-50 px-2 py-0.5 rounded text-xs">150m</span>
+            </div>
+            <input type="range" id="zone-radius-input" min="50" max="800" step="25" value="150" class="w-full accent-blue-600 cursor-pointer" oninput="updateZonePreviewRadius(this.value)">
+            <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+              <span>50m (Pequeño)</span>
+              <span>250m (Medio)</span>
+              <span>800m (Amplio)</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Color del Perímetro:</label>
+            <div class="grid grid-cols-3 gap-1.5 text-center text-xs">
+              <label class="cursor-pointer">
+                <input type="radio" name="zone-color" value="#10b981" checked class="hidden peer" onchange="updateZonePreviewColor('#10b981')">
+                <div class="p-1.5 rounded-lg border border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 flex items-center justify-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                  <span class="text-[11px] font-semibold">Verde</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="zone-color" value="#3b82f6" class="hidden peer" onchange="updateZonePreviewColor('#3b82f6')">
+                <div class="p-1.5 rounded-lg border border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 flex items-center justify-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+                  <span class="text-[11px] font-semibold">Azul</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="zone-color" value="#8b5cf6" class="hidden peer" onchange="updateZonePreviewColor('#8b5cf6')">
+                <div class="p-1.5 rounded-lg border border-slate-200 peer-checked:border-purple-500 peer-checked:bg-purple-50 flex items-center justify-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span>
+                  <span class="text-[11px] font-semibold">Morado</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+            <button type="button" onclick="closeNewZoneModal()" class="px-3.5 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl font-bold text-slate-600 transition">Cancelar</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-200 transition flex items-center gap-1.5">
+              <i class="ph-bold ph-shield-check"></i>
+              <span>Guardar Zona</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
       <!-- Map Floating Overlay Controls -->
       <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
         <button onclick="centerMapOnCircle()" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-md border border-slate-200 text-slate-700 hover:text-blue-600 hover:bg-white transition" title="Centrar mapa en la familia">
@@ -340,47 +465,6 @@
     </div>
   </div>
 
-  <!-- MODAL: ADD NEW SAFE ZONE -->
-  <div id="modal-zone" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="font-bold text-slate-900 text-base">Crear Nueva Zona Segura</h3>
-        <button onclick="closeNewZoneModal()" class="text-slate-400 hover:text-slate-600 font-bold"><i class="ph-bold ph-x text-lg"></i></button>
-      </div>
-      <form id="form-new-zone" onsubmit="handleCreateZone(event)" class="space-y-3 text-xs">
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Nombre de la Zona (Ej. Casa de los Abuelos):</label>
-          <input type="text" id="zone-name-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre descriptivo">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Latitud:</label>
-            <input type="number" step="any" id="zone-lat-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs" value="40.4150">
-          </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Longitud:</label>
-            <input type="number" step="any" id="zone-lng-input" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs" value="-3.7050">
-          </div>
-        </div>
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Radio del Perímetro: <span id="radius-val" class="text-blue-600 font-bold">150m</span></label>
-          <input type="range" id="zone-radius-input" min="50" max="600" step="25" value="150" class="w-full" oninput="document.getElementById('radius-val').innerText = this.value + 'm'">
-        </div>
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Color del Perímetro:</label>
-          <div class="flex gap-2">
-            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="zone-color" value="#10b981" checked> <span class="w-4 h-4 rounded-full bg-emerald-500 inline-block"></span> Verde</label>
-            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="zone-color" value="#3b82f6"> <span class="w-4 h-4 rounded-full bg-blue-500 inline-block"></span> Azul</label>
-            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="zone-color" value="#8b5cf6"> <span class="w-4 h-4 rounded-full bg-purple-500 inline-block"></span> Morado</label>
-          </div>
-        </div>
-        <div class="pt-2 flex justify-end gap-2">
-          <button type="button" onclick="closeNewZoneModal()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-600">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg">Guardar Zona</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- MODAL: WALK WITH ME (ACOMPÁÑAME A CASA) -->
   <div id="modal-walk" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
