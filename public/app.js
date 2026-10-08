@@ -1,7 +1,5 @@
 // Global State & Backend Resolution
-const BACKEND_URL = window.location.hostname.includes('vercel.app')
-  ? 'https://famsafe.onrender.com'
-  : '';
+const BACKEND_URL = '';
 let CURRENT_CIRCLE_ID = localStorage.getItem('famsafe_circle_id');
 if (CURRENT_CIRCLE_ID === 'circle-garcia-001' || CURRENT_CIRCLE_ID === 'undefined' || !CURRENT_CIRCLE_ID) {
   CURRENT_CIRCLE_ID = null;
@@ -559,102 +557,89 @@ function checkActiveWalks() {
 
 // Tab Switching
 function switchTab(tab) {
-  ['members', 'zones', 'alerts', 'sim'].forEach(t => {
-    document.getElementById(`tab-${t}`).classList.add('hidden');
-    document.getElementById(`tab-btn-${t}`).className = "flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5";
+  ['members', 'zones', 'alerts'].forEach(t => {
+    const el = document.getElementById(`tab-${t}`);
+    const btn = document.getElementById(`tab-btn-${t}`);
+    if (el) el.classList.add('hidden');
+    if (btn) btn.className = "flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5";
   });
 
-  document.getElementById(`tab-${tab}`).classList.remove('hidden');
-  document.getElementById(`tab-btn-${tab}`).className = "flex-1 py-3 px-2 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center justify-center gap-1.5";
+  const activeEl = document.getElementById(`tab-${tab}`);
+  const activeBtn = document.getElementById(`tab-btn-${tab}`);
+  if (activeEl) activeEl.classList.remove('hidden');
+  if (activeBtn) activeBtn.className = "flex-1 py-3 px-2 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center justify-center gap-1.5";
 
   if (tab === 'alerts') {
-    document.getElementById('unread-alert-badge').classList.add('hidden');
+    document.getElementById('unread-alert-badge')?.classList.add('hidden');
   }
 }
 
-// Simulator Actions
-async function simulateMoveKid(target) {
-  const member = state.members.find(m => m.role === 'child' || m.role === 'teen') || state.members[0];
-  if (!member) {
-    alert("Crea tu familia o agrega un familiar primero para probar la simulación.");
+// Real Emergency SOS Action (No simulation)
+async function triggerRealSos() {
+  if (!state.circle) {
+    alert("Debes crear o unirte a tu círculo familiar primero.");
+    openAuthModal();
     return;
   }
-  const baseLat = (state.safeZones[0] ? state.safeZones[0].lat : member.lastLocation?.lat) || 19.4326;
-  const baseLng = (state.safeZones[0] ? state.safeZones[0].lng : member.lastLocation?.lng) || -99.1332;
 
-  let newCoords;
-  let address;
-  let status = "walking";
-  let speed = 4.2;
-
-  if (target === 'home') {
-    newCoords = { lat: baseLat, lng: baseLng };
-    address = "Casa Familiar (Llegó a salvo)";
-    status = "stationary";
-    speed = 0;
-  } else if (target === 'school') {
-    newCoords = { lat: baseLat + 0.005, lng: baseLng - 0.004 };
-    address = "Escuela / Actividad (En destino)";
-    status = "stationary";
-    speed = 0;
-  } else {
-    const jitterLat = (Math.random() - 0.5) * 0.003;
-    const jitterLng = (Math.random() - 0.5) * 0.003;
-    newCoords = { lat: baseLat + 0.002 + jitterLat, lng: baseLng + 0.002 + jitterLng };
-    address = "En camino (En movimiento)";
-    status = "walking";
-    speed = 5.1;
-  }
-
-  await fetch(`${BACKEND_URL}/api/telemetry`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      memberId: member.id,
-      lat: newCoords.lat,
-      lng: newCoords.lng,
-      accuracy: 8,
-      speedKmh: speed,
-      status,
-      battery: member.battery,
-      address
-    })
-  });
-  focusMemberOnMap(member.id);
-}
-
-async function simulateLowBattery(memberId, battery) {
-  const member = memberId ? state.members.find(m => m.id === memberId) : state.members[0];
-  if (!member) {
-    alert("Crea tu familia primero para probar la alerta de batería.");
-    return;
-  }
-  await fetch(`${BACKEND_URL}/api/telemetry`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      memberId: member.id,
-      lat: member.lastLocation?.lat || 19.4326,
-      lng: member.lastLocation?.lng || -99.1332,
-      battery: battery !== undefined ? battery : 12
-    })
-  });
-}
-
-async function triggerDemoSos() {
   const member = state.members[0];
   if (!member) {
-    alert("Crea tu familia primero para activar un SOS.");
+    alert("No se encontró ningún familiar activo en este círculo.");
     return;
   }
-  await fetch(`${BACKEND_URL}/api/sos/trigger`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      memberId: member.id,
-      note: 'Simulación de SOS desde el botón de pánico'
-    })
-  });
+
+  const confirmSos = confirm(
+    `🚨 ¿ACTIVAR ALERTA DE EMERGENCIA SOS?\n\nSe enviará una notificación prioritaria inmediata a toda tu familia con tu ubicación GPS en tiempo real.`
+  );
+  if (!confirmSos) return;
+
+  playChime('emergency');
+
+  let lat = userLiveCoords?.lat || member.lastLocation?.lat || 19.4326;
+  let lng = userLiveCoords?.lng || member.lastLocation?.lng || -99.1332;
+  let accuracy = userLiveCoords?.accuracy || 10;
+
+  if ('geolocation' in navigator) {
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 6000 });
+      });
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+      accuracy = pos.coords.accuracy;
+    } catch (e) {
+      console.warn("Using last known GPS position for SOS:", e.message);
+    }
+  }
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/sos/trigger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        memberId: member.id,
+        lat,
+        lng,
+        accuracy,
+        note: `🚨 SOS REAL activado desde el dispositivo de ${member.name}`
+      })
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      alert("Error del servidor al emitir SOS.");
+      return;
+    }
+
+    if (map) {
+      map.flyTo([lat, lng], 17, { duration: 1.5 });
+    }
+
+    await fetchCircleData();
+    alert("🚨 ¡Alerta de Emergencia SOS transmitida con éxito a tu familia!");
+  } catch (err) {
+    alert("Error al emitir alerta SOS: " + err.message);
+  }
 }
 
 async function resolveCurrentSos() {
@@ -1124,7 +1109,11 @@ async function handleRegisterFamily(e) {
         lng: userLiveCoords ? userLiveCoords.lng : undefined
       })
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      alert("Error al registrar familia. Verifica los datos e intenta nuevamente.");
+      return;
+    }
     if (data.error) {
       alert("Error: " + data.error);
       return;
@@ -1162,7 +1151,11 @@ async function handleJoinFamily(e) {
         lng: userLiveCoords ? userLiveCoords.lng : undefined
       })
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      alert("Código de invitación no válido o círculo no encontrado.");
+      return;
+    }
     if (data.error) {
       alert("Error: " + data.error);
       return;
@@ -1192,7 +1185,11 @@ async function handleLoginUser(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      alert("Correo o contraseña incorrectos, o la cuenta aún no ha sido creada.");
+      return;
+    }
     if (data.error) {
       alert("Error: " + data.error);
       return;

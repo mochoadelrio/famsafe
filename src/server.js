@@ -219,8 +219,17 @@ app.delete('/api/zones/:id', (req, res) => {
 
 // SOS Management
 app.post('/api/sos/trigger', (req, res) => {
-  const { memberId, note } = req.body;
+  const { memberId, note, lat, lng, accuracy } = req.body;
   try {
+    if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+      db.updateMemberLocation(memberId, {
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        accuracy: accuracy || 10,
+        status: "sos",
+        address: "🚨 Ubicación de Emergencia SOS en tiempo real"
+      });
+    }
     const result = triggerEmergencySos(memberId, io, { note });
     res.json({ success: true, ...result });
   } catch (err) {
@@ -331,9 +340,14 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 FamSafe SaaS Server iniciado en http://localhost:${PORT}`);
-  console.log(`🛡️  Monitoreo en tiempo real, Geocercas, SOS y Facturación`);
-  console.log(`=======================================================`);
-});
+if (process.env.VERCEL !== '1') {
+  server.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`🚀 FamSafe SaaS Server iniciado en http://localhost:${PORT}`);
+    console.log(`🛡️  Monitoreo en tiempo real, Geocercas, SOS y Facturación`);
+    console.log(`=======================================================`);
+  });
+}
+
+export { app, server };
+export default app;
