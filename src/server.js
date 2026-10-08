@@ -31,6 +31,101 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // ---------------- REST API ROUTES ----------------
 
+// Register a New Family Circle
+app.post('/api/auth/register-family', (req, res) => {
+  const { familyName, parentName, email, phone, password, plan } = req.body;
+  if (!familyName || !parentName || !email || !password) {
+    return res.status(400).json({ error: "Todos los campos principales son requeridos." });
+  }
+
+  try {
+    const result = db.createFamilyAccount({
+      familyName,
+      parentName,
+      email,
+      phone,
+      password,
+      plan: plan || "pro_family"
+    });
+
+    res.json({
+      success: true,
+      circle: result.circle,
+      member: result.member,
+      user: { id: result.user.id, email: result.user.email, name: result.user.name },
+      inviteCode: result.circle.inviteCode
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// User Login
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Correo y contraseña requeridos." });
+  }
+
+  try {
+    const result = db.authenticateUser(email, password);
+    res.json({
+      success: true,
+      circle: result.circle,
+      member: result.member,
+      user: { id: result.user.id, email: result.user.email, name: result.user.name }
+    });
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+// Join Family by 6-digit Invite Code
+app.post('/api/circles/join', (req, res) => {
+  const { inviteCode, memberName, role, phone } = req.body;
+  if (!inviteCode || !memberName) {
+    return res.status(400).json({ error: "Código de invitación y nombre requeridos." });
+  }
+
+  try {
+    const result = db.joinFamilyWithCode({
+      inviteCode,
+      memberName,
+      role: role || "child",
+      phone: phone || ""
+    });
+
+    // Notify circle via WebSocket
+    io.to(result.circle.id).emit('member:joined', {
+      member: result.member,
+      alert: result.alert
+    });
+    io.to(result.circle.id).emit('alert:new', result.alert);
+
+    res.json({
+      success: true,
+      circle: result.circle,
+      member: result.member
+    });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// Validate Invite Code preview
+app.get('/api/circles/by-code/:code', (req, res) => {
+  const circle = db.findCircleByInviteCode(req.params.code);
+  if (!circle) {
+    return res.status(404).json({ error: "Código de invitación no válido." });
+  }
+  res.json({
+    success: true,
+    circleId: circle.id,
+    familyName: circle.name,
+    plan: circle.plan
+  });
+});
+
 // Get Circle Data (Overview)
 app.get('/api/circles/:id', (req, res) => {
   const circleId = req.params.id;

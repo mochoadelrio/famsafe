@@ -2,7 +2,7 @@
 const BACKEND_URL = window.location.hostname.includes('vercel.app')
   ? 'https://famsafe.onrender.com'
   : '';
-const CURRENT_CIRCLE_ID = "circle-garcia-001";
+let CURRENT_CIRCLE_ID = localStorage.getItem('famsafe_circle_id') || "circle-garcia-001";
 let socket;
 let map;
 let memberMarkers = {}; // id -> L.marker
@@ -345,6 +345,13 @@ function setupSocket() {
     }
   });
 
+  socket.on('member:joined', ({ member, alert }) => {
+    state.members.push(member);
+    updateOrCreateMemberMarker(member);
+    renderMembers();
+    playChime('normal');
+  });
+
   socket.on('sos:triggered', ({ sosSession, alert, member }) => {
     state.activeSos.push(sosSession);
     const idx = state.members.findIndex(m => m.id === member.id);
@@ -606,9 +613,146 @@ async function simulateWalkExpiry() {
 }
 
 function copyInviteCode() {
-  navigator.clipboard.writeText(state.circle.inviteCode);
-  alert(`¡Código ${state.circle.inviteCode} copiado al portapapeles! Compártelo con el teléfono de tus familiares para unirse.`);
+  const code = state.circle?.inviteCode || "FAM789";
+  navigator.clipboard.writeText(code);
+  alert(`¡Código ${code} copiado al portapapeles! Compártelo con el teléfono de tus familiares para unirse.`);
 }
+
+// Multi-tenant Auth & WhatsApp Modals
+function openAuthModal() {
+  document.getElementById('modal-auth').classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  document.getElementById('modal-auth').classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+  ['create', 'join', 'login'].forEach(t => {
+    document.getElementById(`form-${t === 'create' ? 'register-family' : t === 'join' ? 'join-family' : 'login-user'}`).classList.add('hidden');
+    document.getElementById(`auth-tab-${t}`).className = "flex-1 pb-3 border-b-2 border-transparent hover:text-slate-700";
+  });
+
+  const activeForm = tab === 'create' ? 'form-register-family' : tab === 'join' ? 'form-join-family' : 'form-login-user';
+  document.getElementById(activeForm).classList.remove('hidden');
+  document.getElementById(`auth-tab-${tab}`).className = "flex-1 pb-3 border-b-2 border-blue-600 text-blue-600 font-bold";
+}
+
+function openInviteModal() {
+  const code = state.circle?.inviteCode || "FAM789";
+  document.getElementById('share-invite-code').innerText = code;
+  document.getElementById('modal-invite').classList.remove('hidden');
+}
+
+function closeInviteModal() {
+  document.getElementById('modal-invite').classList.add('hidden');
+}
+
+function shareViaWhatsApp() {
+  const code = state.circle?.inviteCode || "FAM789";
+  const family = state.circle?.name || "nuestra familia";
+  const url = window.location.origin;
+  const message = `¡Hola! Únete al círculo de seguridad de ${family} en FamSafe. Descarga o abre la app en: ${url} e ingresa este código de invitación: *${code}*`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
+async function handleRegisterFamily(e) {
+  e.preventDefault();
+  const familyName = document.getElementById('reg-family-name').value;
+  const parentName = document.getElementById('reg-parent-name').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/register-family`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyName, parentName, email, password })
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
+    }
+
+    // Switch active circle
+    CURRENT_CIRCLE_ID = data.circle.id;
+    localStorage.setItem('famsafe_circle_id', data.circle.id);
+    closeAuthModal();
+    openInviteModal();
+    await fetchCircleData();
+    if (socket) {
+      socket.emit('circle:join', CURRENT_CIRCLE_ID);
+    }
+  } catch (err) {
+    alert("Error al registrar familia: " + err.message);
+  }
+}
+
+async function handleJoinFamily(e) {
+  e.preventDefault();
+  const inviteCode = document.getElementById('join-invite-code').value;
+  const memberName = document.getElementById('join-member-name').value;
+  const role = document.getElementById('join-member-role').value;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/circles/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inviteCode, memberName, role })
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
+    }
+
+    CURRENT_CIRCLE_ID = data.circle.id;
+    localStorage.setItem('famsafe_circle_id', data.circle.id);
+    closeAuthModal();
+    alert(`¡Te has unido exitosamente a la ${data.circle.name}!`);
+    await fetchCircleData();
+    if (socket) {
+      socket.emit('circle:join', CURRENT_CIRCLE_ID);
+    }
+  } catch (err) {
+    alert("Error al unirse: " + err.message);
+  }
+}
+
+async function handleLoginUser(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
+    }
+
+    CURRENT_CIRCLE_ID = data.circle.id;
+    localStorage.setItem('famsafe_circle_id', data.circle.id);
+    closeAuthModal();
+    alert(`¡Bienvenido de vuelta, ${data.user.name}!`);
+    await fetchCircleData();
+    if (socket) {
+      socket.emit('circle:join', CURRENT_CIRCLE_ID);
+    }
+  } catch (err) {
+    alert("Error al iniciar sesión: " + err.message);
+  }
+}
+
+// Socket listener for new member joining in realtime
+// (placed inside setupSocket)
 
 // Bootstrapping
 window.addEventListener('DOMContentLoaded', () => {

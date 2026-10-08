@@ -346,19 +346,177 @@ class Database {
     return this.data.activeWalkSessions.filter(w => w.circleId === circleId && w.status === "active");
   }
 
-  // Subscription upgrade
-  updateCirclePlan(circleId, planId, planName) {
-    const circle = this.getCircleById(circleId);
-    if (circle) {
-      circle.plan = planId;
-      circle.subscription = {
-        status: "active",
-        planName,
-        updatedAt: new Date().toISOString()
-      };
-      this.save();
+  // Multi-tenant Family Circle Management
+  findCircleByInviteCode(inviteCode) {
+    if (!inviteCode) return null;
+    const clean = inviteCode.trim().toUpperCase();
+    return this.data.circles.find(c => c.inviteCode === clean);
+  }
+
+  findUserByEmail(email) {
+    if (!this.data.users) this.data.users = [];
+    return this.data.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  }
+
+  generateInviteCode(prefix = "FAM") {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 3; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return circle;
+    const num = Math.floor(100 + Math.random() * 900);
+    return `${prefix.substring(0, 3).toUpperCase()}${num}`;
+  }
+
+  createFamilyAccount({ familyName, parentName, email, phone, password, plan = "pro_family" }) {
+    if (!this.data.users) this.data.users = [];
+
+    const existingUser = this.findUserByEmail(email);
+    if (existingUser) {
+      throw new Error("Ya existe una cuenta registrada con este correo electrónico.");
+    }
+
+    const circleId = `circle-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const memberId = `member-${Date.now()}-guardian`;
+    const userId = `user-${Date.now()}`;
+    const inviteCode = this.generateInviteCode(familyName.substring(0, 3) || "FAM");
+
+    // 1. Create Circle
+    const newCircle = {
+      id: circleId,
+      name: familyName,
+      inviteCode,
+      plan: plan || "pro_family",
+      subscription: {
+        status: "active",
+        planName: plan === "basic" ? "Plan Básico ($49 MXN/mes)" : "Plan Familiar Pro ($149 MXN/mes)",
+        renewsAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
+      },
+      createdAt: new Date().toISOString()
+    };
+    this.data.circles.push(newCircle);
+
+    // 2. Create Guardian Member
+    const newMember = {
+      id: memberId,
+      circleId,
+      name: `${parentName} (Tutor)`,
+      role: "guardian",
+      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      phone: phone || "",
+      battery: 100,
+      isCharging: false,
+      status: "stationary",
+      speedKmh: 0,
+      privacyMode: "standard",
+      lastLocation: {
+        lat: 19.4326, // Default CDMX coordinates
+        lng: -99.1332,
+        accuracy: 10,
+        timestamp: new Date().toISOString(),
+        address: "Ubicación inicial configurada"
+      }
+    };
+    this.data.members.push(newMember);
+
+    // 3. Create User Credential
+    const newUser = {
+      id: userId,
+      email: email.toLowerCase(),
+      password, // In a full prod app we bcrypt, for instant MVP simplicity
+      name: parentName,
+      circleId,
+      memberId,
+      role: "guardian",
+      createdAt: new Date().toISOString()
+    };
+    this.data.users.push(newUser);
+
+    // 4. Default Safe Zone: Casa Familiar
+    const defaultZone = {
+      id: `zone-${Date.now()}-home`,
+      circleId,
+      name: "Casa Familiar",
+      icon: "home",
+      lat: 19.4326,
+      lng: -99.1332,
+      radiusMeters: 150,
+      color: "#10b981",
+      notifyOnEntry: true,
+      notifyOnExit: true
+    };
+    this.data.safeZones.push(defaultZone);
+
+    // 5. Initial Welcome Alert
+    this.addAlert({
+      circleId,
+      memberId,
+      type: "circle_created",
+      title: "🎉 ¡Bienvenidos a FamSafe!",
+      message: `Círculo '${familyName}' creado exitosamente. Tu código de invitación es ${inviteCode}.`
+    });
+
+    this.save();
+    return { circle: newCircle, member: newMember, user: newUser };
+  }
+
+  joinFamilyWithCode({ inviteCode, memberName, role = "child", phone = "" }) {
+    const circle = this.findCircleByInviteCode(inviteCode);
+    if (!circle) {
+      throw new Error(`Código de invitación '${inviteCode}' no encontrado. Verifica con el administrador de la familia.`);
+    }
+
+    const memberId = `member-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const avatar = role === 'child'
+      ? "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=150&auto=format&fit=crop&q=80"
+      : role === 'teen'
+      ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+      : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80";
+
+    const newMember = {
+      id: memberId,
+      circleId: circle.id,
+      name: memberName,
+      role: role || "child",
+      avatar,
+      phone: phone || "",
+      battery: 95,
+      isCharging: false,
+      status: "stationary",
+      speedKmh: 0,
+      privacyMode: role === 'teen' ? 'teen_shield' : role === 'child' ? 'strict_child' : 'standard',
+      lastLocation: {
+        lat: 19.4326 + (Math.random() - 0.5) * 0.005,
+        lng: -99.1332 + (Math.random() - 0.5) * 0.005,
+        accuracy: 10,
+        timestamp: new Date().toISOString(),
+        address: "Dispositivo vinculado"
+      }
+    };
+
+    this.data.members.push(newMember);
+
+    const alert = this.addAlert({
+      circleId: circle.id,
+      memberId: newMember.id,
+      type: "member_joined",
+      title: "👋 Nuevo Integrante",
+      message: `${memberName} se ha unido al círculo familiar '${circle.name}'.`
+    });
+
+    this.save();
+    return { circle, member: newMember, alert };
+  }
+
+  authenticateUser(email, password) {
+    if (!this.data.users) this.data.users = [];
+    const user = this.findUserByEmail(email);
+    if (!user || user.password !== password) {
+      throw new Error("Correo o contraseña incorrectos.");
+    }
+    const circle = this.getCircleById(user.circleId);
+    const member = this.getMemberById(user.memberId);
+    return { user, circle, member };
   }
 }
 

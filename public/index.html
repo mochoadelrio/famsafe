@@ -44,11 +44,17 @@
 
     <!-- Center/Right Action Bar -->
     <div class="flex items-center gap-3">
-      <!-- Invite Code Pill -->
-      <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-medium text-slate-600 border border-slate-200">
-        <i class="ph ph-users-three text-base text-slate-400"></i>
-        <span>Círculo: <strong class="text-slate-900" id="circle-name">Familia García</strong></span>
-        <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-mono font-bold" id="circle-code">FAM789</span>
+      <!-- Family Selector & WhatsApp Share Pill -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="openAuthModal()" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 border border-slate-200 transition">
+          <i class="ph-bold ph-users-three text-blue-600 text-sm"></i>
+          <span>Círculo: <strong class="text-slate-900" id="circle-name">Familia García</strong></span>
+          <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono font-bold" id="circle-code">FAM789</span>
+        </button>
+        <button onclick="openInviteModal()" class="px-2.5 py-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] rounded-lg border border-[#25D366]/30 text-xs font-bold transition flex items-center gap-1" title="Invitar familiares por WhatsApp">
+          <i class="ph-bold ph-whatsapp-logo text-base"></i>
+          <span class="hidden sm:inline">Invitar</span>
+        </button>
       </div>
 
       <!-- SaaS Subscription Pill -->
@@ -412,6 +418,126 @@
           <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">Activar Protección de Trayecto</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRO / LOGIN / UNIÓN MULTI-FAMILIA -->
+  <div id="modal-auth" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 relative">
+      <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-lg font-bold">
+        <i class="ph-bold ph-x"></i>
+      </button>
+
+      <!-- Auth Tabs -->
+      <div class="flex border-b border-slate-200 text-xs font-bold text-slate-500">
+        <button onclick="switchAuthTab('create')" id="auth-tab-create" class="flex-1 pb-3 border-b-2 border-blue-600 text-blue-600">
+          Crear Familia
+        </button>
+        <button onclick="switchAuthTab('join')" id="auth-tab-join" class="flex-1 pb-3 border-b-2 border-transparent hover:text-slate-700">
+          Unirme con Código
+        </button>
+        <button onclick="switchAuthTab('login')" id="auth-tab-login" class="flex-1 pb-3 border-b-2 border-transparent hover:text-slate-700">
+          Iniciar Sesión
+        </button>
+      </div>
+
+      <!-- TAB 1: CREAR FAMILIA -->
+      <form id="form-register-family" onsubmit="handleRegisterFamily(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nombre de la Familia:</label>
+          <input type="text" id="reg-family-name" required placeholder="Ej. Familia Ochoa" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Tu Nombre (Tutor / Administrador):</label>
+          <input type="text" id="reg-parent-name" required placeholder="Ej. Manuel Ochoa" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Correo Electrónico:</label>
+          <input type="email" id="reg-email" required placeholder="tu@correo.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Contraseña:</label>
+          <input type="password" id="reg-password" required placeholder="••••••••" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-200 transition">
+          Crear Círculo Familiar
+        </button>
+      </form>
+
+      <!-- TAB 2: UNIRME CON CÓDIGO -->
+      <form id="form-join-family" onsubmit="handleJoinFamily(event)" class="hidden space-y-3 text-xs">
+        <div class="p-3 bg-blue-50 rounded-xl text-blue-900 border border-blue-200 text-[11px] leading-snug">
+          Ingresa el código de 6 dígitos que te compartió el administrador de tu familia por WhatsApp.
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Código de Invitación (6 caracteres):</label>
+          <input type="text" id="join-invite-code" required maxlength="8" placeholder="Ej. FAM789 o OCH452" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono font-bold tracking-widest text-center uppercase outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Tu Nombre Completo:</label>
+          <input type="text" id="join-member-name" required placeholder="Ej. Mateo (Hijo)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Tu Rol en la Familia:</label>
+          <select id="join-member-role" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold">
+            <option value="child">Hijo / Menor de edad</option>
+            <option value="teen">Adolescente (13-17 años con modo respeto)</option>
+            <option value="guardian">Papá / Mamá / Tutor</option>
+          </select>
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-200 transition">
+          Vincular Teléfono a la Familia
+        </button>
+      </form>
+
+      <!-- TAB 3: INICIAR SESIÓN -->
+      <form id="form-login-user" onsubmit="handleLoginUser(event)" class="hidden space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Correo Electrónico:</label>
+          <input type="email" id="login-email" required placeholder="tu@correo.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Contraseña:</label>
+          <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-md transition">
+          Ingresar al Círculo
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: COMPARTIR CÓDIGO POR WHATSAPP -->
+  <div id="modal-invite" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center relative">
+      <button onclick="closeInviteModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-lg font-bold">
+        <i class="ph-bold ph-x"></i>
+      </button>
+
+      <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl">
+        <i class="ph-bold ph-whatsapp-logo"></i>
+      </div>
+
+      <div>
+        <h3 class="font-extrabold text-base text-slate-900">Invita a tu Familia</h3>
+        <p class="text-xs text-slate-500 mt-1">Comparte este código para que tus hijos o pareja se unan a tu mapa seguro.</p>
+      </div>
+
+      <div class="bg-slate-100 border border-slate-200 p-3 rounded-2xl">
+        <span class="text-xs text-slate-400 font-bold block mb-1">CÓDIGO DE INVITACIÓN:</span>
+        <span id="share-invite-code" class="text-2xl font-black font-mono tracking-widest text-blue-600">FAM789</span>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="shareViaWhatsApp()" class="w-full py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-xs transition">
+          <i class="ph-bold ph-whatsapp-logo text-lg"></i>
+          <span>Enviar por WhatsApp</span>
+        </button>
+        <button onclick="copyInviteCode()" class="w-full py-2.5 border border-slate-300 font-bold rounded-xl text-slate-700 hover:bg-slate-50 text-xs transition flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-copy"></i>
+          <span>Copiar Enlace</span>
+        </button>
+      </div>
     </div>
   </div>
 
