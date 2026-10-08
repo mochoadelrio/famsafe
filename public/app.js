@@ -657,6 +657,8 @@ function playDemoSiren() {
 }
 
 // Modal Handlers
+let modalBillingPeriod = 'monthly';
+
 function openPricingModal() {
   document.getElementById('modal-pricing').classList.remove('hidden');
 }
@@ -665,16 +667,87 @@ function closePricingModal() {
   document.getElementById('modal-pricing').classList.add('hidden');
 }
 
+function setModalBillingPeriod(period) {
+  modalBillingPeriod = period;
+  const isAnnual = period === 'annual';
+
+  const btnMonthly = document.getElementById('modal-billing-monthly');
+  const btnAnnual = document.getElementById('modal-billing-annual');
+
+  if (isAnnual) {
+    if (btnAnnual) btnAnnual.className = "px-4 py-1.5 rounded-full bg-white shadow-sm text-slate-900 transition flex items-center gap-1.5";
+    if (btnMonthly) btnMonthly.className = "px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition";
+
+    const pBasic = document.getElementById('modal-price-basic');
+    if (pBasic) pBasic.innerText = "$399";
+    const perBasic = document.getElementById('modal-period-basic');
+    if (perBasic) perBasic.innerText = "MXN / año";
+    const subBasic = document.getElementById('modal-subtext-basic');
+    if (subBasic) subBasic.innerText = "Equivale a solo $33 MXN/mes";
+
+    const pPro = document.getElementById('modal-price-pro');
+    if (pPro) pPro.innerText = "$1,199";
+    const perPro = document.getElementById('modal-period-pro');
+    if (perPro) perPro.innerText = "MXN / año";
+    const subPro = document.getElementById('modal-subtext-pro');
+    if (subPro) subPro.innerText = "Equivale a solo $99 MXN/mes";
+
+    const pG = document.getElementById('modal-price-guardian');
+    if (pG) pG.innerText = "$2,299";
+    const perG = document.getElementById('modal-period-guardian');
+    if (perG) perG.innerText = "MXN / año";
+    const subG = document.getElementById('modal-subtext-guardian');
+    if (subG) subG.innerText = "Equivale a solo $191 MXN/mes";
+  } else {
+    if (btnMonthly) btnMonthly.className = "px-4 py-1.5 rounded-full bg-white shadow-sm text-slate-900 transition";
+    if (btnAnnual) btnAnnual.className = "px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition flex items-center gap-1.5";
+
+    const pBasic = document.getElementById('modal-price-basic');
+    if (pBasic) pBasic.innerText = "$49";
+    const perBasic = document.getElementById('modal-period-basic');
+    if (perBasic) perBasic.innerText = "MXN / mes";
+    const subBasic = document.getElementById('modal-subtext-basic');
+    if (subBasic) subBasic.innerText = "Cobrado mes a mes";
+
+    const pPro = document.getElementById('modal-price-pro');
+    if (pPro) pPro.innerText = "$149";
+    const perPro = document.getElementById('modal-period-pro');
+    if (perPro) perPro.innerText = "MXN / mes";
+    const subPro = document.getElementById('modal-subtext-pro');
+    if (subPro) subPro.innerText = "Cobrado mes a mes";
+
+    const pG = document.getElementById('modal-price-guardian');
+    if (pG) pG.innerText = "$289";
+    const perG = document.getElementById('modal-period-guardian');
+    if (perG) perG.innerText = "MXN / mes";
+    const subG = document.getElementById('modal-subtext-guardian');
+    if (subG) subG.innerText = "Cobrado mes a mes";
+  }
+}
+
 async function selectPlan(planId) {
+  if (!CURRENT_CIRCLE_ID) {
+    alert("Debes crear o ingresar a tu familia primero.");
+    closePricingModal();
+    openAuthModal();
+    return;
+  }
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/billing/upgrade`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ circleId: CURRENT_CIRCLE_ID, planId })
+      body: JSON.stringify({ circleId: CURRENT_CIRCLE_ID, planId, billingPeriod: modalBillingPeriod })
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      alert("Error al actualizar plan.");
+      return;
+    }
     if (data.success) {
       closePricingModal();
+      await fetchCircleData();
+      alert(`🎉 ¡Plan actualizado a ${data.plan.name} en pesos mexicanos!`);
     }
   } catch (err) {
     alert("Error al actualizar plan: " + err.message);

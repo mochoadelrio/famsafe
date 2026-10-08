@@ -1,29 +1,48 @@
 import { db } from './db.js';
 
 export const PLANS = {
+  basic: {
+    id: "basic",
+    name: "Plan Básico ($49 MXN/mes)",
+    priceMxn: 49,
+    priceMxnAnnual: 399,
+    maxMembers: 3,
+    maxSafeZones: 2,
+    historyDays: 7,
+    features: [
+      "Hasta 3 integrantes familiares",
+      "2 Zonas Seguras (ej. Casa y Escuela)",
+      "Alertas de batería baja (< 15%)",
+      "Historial de rutas de 7 días",
+      "Botón de alerta de pánico SOS"
+    ]
+  },
   freemium: {
     id: "freemium",
-    name: "Plan Gratuito",
-    priceUsd: 0,
-    maxMembers: 2,
-    maxSafeZones: 1,
-    historyDays: 2,
+    name: "Plan Básico ($49 MXN/mes)",
+    priceMxn: 49,
+    priceMxnAnnual: 399,
+    maxMembers: 3,
+    maxSafeZones: 2,
+    historyDays: 7,
     features: [
-      "Hasta 2 miembros familiares",
-      "1 Zona Segura (ej. Casa)",
-      "Alertas de batería baja",
-      "Historial de 48 horas"
+      "Hasta 3 integrantes familiares",
+      "2 Zonas Seguras (ej. Casa y Escuela)",
+      "Alertas de batería baja (< 15%)",
+      "Historial de rutas de 7 días",
+      "Botón de alerta de pánico SOS"
     ]
   },
   pro_family: {
     id: "pro_family",
-    name: "Plan Familiar Pro",
-    priceUsd: 7.99,
+    name: "Plan Familiar Pro ($149 MXN/mes)",
+    priceMxn: 149,
+    priceMxnAnnual: 1199,
     maxMembers: 10,
     maxSafeZones: 999,
     historyDays: 30,
     features: [
-      "Hasta 10 miembros familiares",
+      "Hasta 10 integrantes familiares",
       "Zonas Seguras ilimitadas con horarios",
       "Actualización de posición cada 5-15 seg",
       "Modo Privacidad Adolescente",
@@ -34,12 +53,14 @@ export const PLANS = {
   },
   guardian_plus: {
     id: "guardian_plus",
-    name: "Plan Guardian Plus (Protección Total)",
-    priceUsd: 14.99,
+    name: "Plan Guardian Plus ($289 MXN/mes)",
+    priceMxn: 289,
+    priceMxnAnnual: 2299,
     maxMembers: 999,
     maxSafeZones: 999,
     historyDays: 90,
     features: [
+      "Integrantes familiares ilimitados",
       "Todo lo de Pro sin límites",
       "Transmisión de audio ambiental en vivo en SOS",
       "Detección de accidentes y frenazos bruscos",

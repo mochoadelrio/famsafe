@@ -338,76 +338,114 @@
 
   </div>
 
-  <!-- MODAL: SAAS PRICING & SUBSCRIPTION -->
+  <!-- MODAL: SAAS PRICING & SUBSCRIPTION (EN PESOS MEXICANOS) -->
   <div id="modal-pricing" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-4xl w-full p-8 shadow-2xl border border-slate-200 space-y-6 relative max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-4xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 space-y-6 relative max-h-[90vh] overflow-y-auto">
       <button onclick="closePricingModal()" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 text-xl font-bold">
         <i class="ph-bold ph-x"></i>
       </button>
 
       <div class="text-center space-y-2">
-        <span class="bg-blue-100 text-blue-700 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">Modelo de Negocio SaaS</span>
+        <span class="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">🇲🇽 Precios en Pesos Mexicanos (MXN)</span>
         <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900">Planes de Suscripción para Familias</h2>
-        <p class="text-slate-500 text-sm max-w-xl mx-auto">Una sola suscripción cubre a toda la familia. Sin cobros por hijo extra y con cero venta de datos.</p>
+        <p class="text-slate-500 text-xs md:text-sm max-w-xl mx-auto">Una sola suscripción cubre a toda la familia. Sin cobros por hijo extra y con cero venta de datos.</p>
+        
+        <!-- Toggle Mensual / Anual -->
+        <div class="inline-flex items-center gap-2 p-1 bg-slate-100 rounded-full text-xs font-bold pt-1">
+          <button type="button" id="modal-billing-monthly" onclick="setModalBillingPeriod('monthly')" class="px-4 py-1.5 rounded-full bg-white shadow-sm text-slate-900 transition">
+            Facturación Mensual
+          </button>
+          <button type="button" id="modal-billing-annual" onclick="setModalBillingPeriod('annual')" class="px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition flex items-center gap-1.5">
+            <span>Anual</span>
+            <span class="bg-emerald-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">Ahorra hasta 33%</span>
+          </button>
+        </div>
       </div>
 
       <!-- Pricing Cards Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-        <!-- Free Tier -->
-        <div class="border border-slate-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-lg transition">
-          <div class="space-y-4">
-            <h3 class="font-bold text-slate-900 text-lg">Plan Gratuito</h3>
-            <div class="text-3xl font-extrabold text-slate-900">$0 <span class="text-xs font-normal text-slate-500">/mes</span></div>
-            <p class="text-xs text-slate-500">Ideal para conocer la app con lo básico.</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+        <!-- Plan Básico -->
+        <div class="border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:shadow-lg transition bg-white">
+          <div class="space-y-3">
+            <h3 class="font-bold text-slate-900 text-base">Plan Básico</h3>
+            <div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-3xl font-black text-slate-900" id="modal-price-basic">$49</span>
+                <span class="text-xs text-slate-500 font-semibold" id="modal-period-basic">MXN / mes</span>
+              </div>
+              <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="modal-subtext-basic">Cobrado mes a mes</p>
+            </div>
+            <p class="text-xs text-slate-500">Esencial para familias pequeñas.</p>
             <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
-              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Hasta 2 integrantes</li>
-              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> 1 Zona Segura</li>
-              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Alerta de batería baja</li>
-              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Historial de 48 horas</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> <strong>Hasta 3 integrantes</strong></li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> <strong>2 Zonas Seguras</strong> (Casa y Escuela)</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Alerta de batería baja (&lt; 15%)</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Historial de 7 días</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Botón de pánico SOS</li>
             </ul>
           </div>
-          <button onclick="selectPlan('freemium')" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition">
-            Continuar Gratis
+          <button onclick="selectPlan('basic')" class="mt-5 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition">
+            Elegir Plan Básico
           </button>
         </div>
 
-        <!-- Pro Family Tier (Recommended) -->
-        <div class="border-2 border-blue-600 rounded-2xl p-6 flex flex-col justify-between shadow-xl relative bg-blue-50/20">
-          <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider">
+        <!-- Pro Family Tier (Más Popular) -->
+        <div class="border-2 border-blue-600 rounded-2xl p-5 flex flex-col justify-between shadow-xl relative bg-blue-50/20">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
             Más Popular
           </div>
-          <div class="space-y-4">
-            <h3 class="font-bold text-slate-900 text-lg">Familiar Pro</h3>
-            <div class="text-3xl font-extrabold text-slate-900">$7.99 <span class="text-xs font-normal text-slate-500">USD / mes</span></div>
-            <p class="text-xs text-slate-500">Tranquilidad completa para toda la familia.</p>
-            <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-blue-100">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-slate-900 text-base">Familiar Pro</h3>
+              <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Recomendado</span>
+            </div>
+            <div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-3xl font-black text-blue-600" id="modal-price-pro">$149</span>
+                <span class="text-xs text-slate-500 font-semibold" id="modal-period-pro">MXN / mes</span>
+              </div>
+              <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="modal-subtext-pro">Cobrado mes a mes</p>
+            </div>
+            <p class="text-xs text-slate-500">Tranquilidad absoluta para toda la familia.</p>
+            <ul class="text-xs text-slate-700 space-y-2 pt-2 border-t border-blue-100">
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> <strong>Hasta 10 integrantes</strong></li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> <strong>Zonas Seguras ilimitadas</strong></li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Acompáñame a Casa (Walk With Me)</li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Modo Privacidad Adolescente</li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Historial de 30 días</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500"></i> Alertas automáticas escolares</li>
             </ul>
           </div>
-          <button onclick="selectPlan('pro_family')" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition">
+          <button onclick="selectPlan('pro_family')" class="mt-5 w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition">
             Activar Plan Pro
           </button>
         </div>
 
-        <!-- Guardian Plus Tier -->
-        <div class="border border-purple-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-lg transition bg-purple-50/20">
-          <div class="space-y-4">
-            <h3 class="font-bold text-slate-900 text-lg">Guardian Plus</h3>
-            <div class="text-3xl font-extrabold text-slate-900">$14.99 <span class="text-xs font-normal text-slate-500">USD / mes</span></div>
-            <p class="text-xs text-slate-500">Protección infantil de grado élite con IA.</p>
+        <!-- Guardian Plus Tier (Élite) -->
+        <div class="border border-purple-200 rounded-2xl p-5 flex flex-col justify-between hover:shadow-lg transition bg-purple-50/20">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-slate-900 text-base">Guardian Plus</h3>
+              <span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">Protección Élite</span>
+            </div>
+            <div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-3xl font-black text-purple-600" id="modal-price-guardian">$289</span>
+                <span class="text-xs text-slate-500 font-semibold" id="modal-period-guardian">MXN / mes</span>
+              </div>
+              <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="modal-subtext-guardian">Cobrado mes a mes</p>
+            </div>
+            <p class="text-xs text-slate-500">Audio ambiental en vivo y sensores inteligentes con IA.</p>
             <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-purple-100">
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> <strong>Integrantes ilimitados</strong></li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Todo lo del Plan Pro</li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> <strong>Audio ambiental en vivo en SOS</strong></li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Detección de impacto vehicular</li>
-              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Detección de desvío de ruta por IA</li>
+              <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Desvío de ruta inteligente por IA</li>
               <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-600"></i> Historial de 90 días</li>
             </ul>
           </div>
-          <button onclick="selectPlan('guardian_plus')" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-md shadow-purple-200 transition">
+          <button onclick="selectPlan('guardian_plus')" class="mt-5 w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-md shadow-purple-200 transition">
             Activar Guardian Plus
           </button>
         </div>
