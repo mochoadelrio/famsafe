@@ -61,6 +61,9 @@ let currentTileLayer = 'osm';
 let tileLayerInstance;
 let userLiveCoords = null;
 let userCurrentLocationMarker = null;
+let gpsWatchId = null;
+let lastSyncedCoords = null;
+let hasCenteredOnRealGps = false;
 
 // Map Initialization
 function initMap() {
@@ -80,55 +83,187 @@ function initMap() {
   detectUserLocation();
 }
 
+function handleGpsSuccess(pos, forceCenter = false) {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const accuracy = Math.round(pos.coords.accuracy || 10);
+  const speedMps = pos.coords.speed || 0;
+  const speedKmh = Math.max(0, Math.round(speedMps * 3.6));
+
+  userLiveCoords = { lat, lng, accuracy, speedKmh };
+  console.log("📍 Ubicación GPS real detectada:", userLiveCoords);
+
+  if (map) {
+    // Add or update pulsing blue dot for the current device
+    if (!userCurrentLocationMarker) {
+      const myDotHtml = `
+        <div class="relative flex items-center justify-center">
+          <div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div>
+          <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
+        </div>
+      `;
+      const icon = L.divIcon({ html: myDotHtml, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
+      userCurrentLocationMarker = L.marker([lat, lng], { icon }).addTo(map);
+      userCurrentLocationMarker.bindTooltip("<strong>📍 Tu ubicación GPS exacta</strong>", { permanent: false });
+    } else {
+      userCurrentLocationMarker.setLatLng([lat, lng]);
+    }
+  }
+
+  const shouldCenter = forceCenter || !hasCenteredOnRealGps;
+  hasCenteredOnRealGps = true;
+  syncActiveMemberLocation(userLiveCoords, shouldCenter);
+}
+
+async function syncActiveMemberLocation(coords, shouldFlyTo = false, targetMemberId = null) {
+  if (!coords) return;
+
+  if (!state.members || state.members.length === 0) {
+    if (shouldFlyTo && map) {
+      map.flyTo([coords.lat, coords.lng], 16, { duration: 1.3 });
+    }
+    return;
+  }
+
+  const storedMemberId = targetMemberId || localStorage.getItem('famsafe_current_member_id');
+  const myMember = (storedMemberId && state.members.find(m => m.id === storedMemberId))
+    || state.members.find(m => m.role === 'guardian')
+    || state.members[0];
+
+  if (!myMember) return;
+
+  const prevAddr = (myMember.lastLocation?.address && myMember.lastLocation.address !== 'Casa Familiar (Ubicación GPS)')
+    ? myMember.lastLocation.address
+    : 'Actualizando dirección GPS...';
+
+  myMember.lastLocation = {
+    lat: coords.lat,
+    lng: coords.lng,
+    accuracy: coords.accuracy || 10,
+    timestamp: new Date().toISOString(),
+    address: prevAddr
+  };
+  myMember.speedKmh = coords.speedKmh || 0;
+  if (myMember.status !== 'sos') {
+    myMember.status = (coords.speedKmh && coords.speedKmh > 2) ? 'walking' : 'stationary';
+  }
+
+  updateOrCreateMemberMarker(myMember);
+  renderMembers();
+
+  if (shouldFlyTo && map) {
+    map.flyTo([coords.lat, coords.lng], 16, { duration: 1.3 });
+  }
+
+  // Avoid duplicate telemetry requests if position changed by less than ~8 meters and not forced
+  if (!shouldFlyTo && lastSyncedCoords) {
+    const dLat = Math.abs(coords.lat - lastSyncedCoords.lat);
+    const dLng = Math.abs(coords.lng - lastSyncedCoords.lng);
+    if (dLat < 0.00008 && dLng < 0.00008) return;
+  }
+  lastSyncedCoords = { lat: coords.lat, lng: coords.lng };
+
+  // Reverse geocode street and neighborhood via OpenStreetMap Nominatim
+  let resolvedAddress = 'Ubicación GPS en vivo';
+  try {
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}`, {
+      headers: { 'Accept-Language': 'es' }
+    });
+    if (geoRes.ok) {
+      const geoData = await geoRes.json();
+      if (geoData && geoData.address) {
+        const road = geoData.address.road || geoData.address.pedestrian || geoData.address.residential || '';
+        const suburb = geoData.address.suburb || geoData.address.neighbourhood || geoData.address.city_district || '';
+        const city = geoData.address.city || geoData.address.town || geoData.address.municipality || geoData.address.state || '';
+        const parts = [road, suburb !== road ? suburb : '', city].filter(Boolean);
+        if (parts.length > 0) {
+          resolvedAddress = parts.slice(0, 3).join(', ');
+        } else if (geoData.display_name) {
+          resolvedAddress = geoData.display_name.split(',').slice(0, 3).join(',');
+        }
+      }
+    }
+  } catch (e) {
+    resolvedAddress = `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+  }
+
+  myMember.lastLocation.address = resolvedAddress;
+  renderMembers();
+
+  // Persist to AWS backend & notify circle
+  try {
+    await fetch(`${BACKEND_URL}/api/telemetry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        memberId: myMember.id,
+        lat: coords.lat,
+        lng: coords.lng,
+        accuracy: coords.accuracy || 10,
+        speedKmh: coords.speedKmh || 0,
+        status: myMember.status,
+        battery: myMember.battery,
+        isCharging: myMember.isCharging,
+        address: resolvedAddress
+      })
+    });
+  } catch (err) {
+    console.warn("Error enviando telemetría GPS:", err);
+  }
+}
+
+function forceRefreshMyGps(memberId = null) {
+  if (memberId) {
+    localStorage.setItem('famsafe_current_member_id', memberId);
+  }
+  if (!('geolocation' in navigator)) {
+    alert("Tu navegador no soporta geolocalización GPS.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      lastSyncedCoords = null; // Force backend sync & reverse geocode
+      handleGpsSuccess(pos, true);
+    },
+    (err) => {
+      alert("Permiso de ubicación GPS requerido. Asegúrate de permitir el acceso a la ubicación en el icono del candado junto a la barra de direcciones.");
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
 function detectUserLocation() {
   if ('geolocation' in navigator) {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        userLiveCoords = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
-        };
-        console.log("📍 Ubicación GPS real detectada:", userLiveCoords);
-
-        if (map) {
-          // If no members are loaded yet, fly directly to user's real city/street!
-          if (state.members.length === 0) {
-            map.flyTo([userLiveCoords.lat, userLiveCoords.lng], 15, { duration: 1.5 });
-          }
-
-          // Add a pulsing blue dot for the current device
-          if (!userCurrentLocationMarker) {
-            const myDotHtml = `
-              <div class="relative flex items-center justify-center">
-                <div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div>
-                <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
-              </div>
-            `;
-            const icon = L.divIcon({ html: myDotHtml, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
-            userCurrentLocationMarker = L.marker([userLiveCoords.lat, userLiveCoords.lng], { icon }).addTo(map);
-            userCurrentLocationMarker.bindTooltip("<strong>📍 Tu ubicación actual</strong>", { permanent: false });
-          } else {
-            userCurrentLocationMarker.setLatLng([userLiveCoords.lat, userLiveCoords.lng]);
-          }
-        }
-      },
+      (pos) => handleGpsSuccess(pos, true),
       (err) => {
-        console.warn("GPS no disponible o permiso no otorgado, usando ubicación por IP:", err.message);
-        // Fallback to IP geolocation for city
-        fetch('https://ipapi.co/json/')
-          .then(r => r.json())
-          .then(data => {
-            if (data.latitude && data.longitude) {
-              userLiveCoords = { lat: data.latitude, lng: data.longitude };
-              if (map && state.members.length === 0) {
-                map.flyTo([data.latitude, data.longitude], 13, { duration: 1.5 });
-              }
-            }
-          })
-          .catch(() => {});
+        console.warn("GPS de alta precisión no disponible, intentando estándar / IP:", err.message);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => handleGpsSuccess(pos, true),
+          () => {
+            fetch('https://ipapi.co/json/')
+              .then(r => r.json())
+              .then(data => {
+                if (data.latitude && data.longitude) {
+                  userLiveCoords = { lat: data.latitude, lng: data.longitude, accuracy: 500, speedKmh: 0 };
+                  syncActiveMemberLocation(userLiveCoords, true);
+                }
+              })
+              .catch(() => {});
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        );
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+
+    if (gpsWatchId !== null) {
+      navigator.geolocation.clearWatch(gpsWatchId);
+    }
+    gpsWatchId = navigator.geolocation.watchPosition(
+      (pos) => handleGpsSuccess(pos, false),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
     );
   }
 }
@@ -174,6 +309,12 @@ async function fetchCircleData() {
     const data = await res.json();
     state = data;
 
+    // Immediately apply real device GPS coordinates if already acquired
+    if (userLiveCoords) {
+      lastSyncedCoords = null;
+      syncActiveMemberLocation(userLiveCoords, true);
+    }
+
     renderHeader();
     renderMembers();
     renderSafeZones();
@@ -183,6 +324,7 @@ async function fetchCircleData() {
     checkActiveWalks();
     checkSubscriptionExpiration();
     initLiveBatterySync();
+    detectUserLocation();
   } catch (err) {
     console.error("Error fetching circle data:", err);
     renderEmptyCircleState();
@@ -345,9 +487,9 @@ function renderMembers() {
                 <div class="h-full ${batteryColor}" style="width: ${member.battery}%"></div>
               </div>
             </div>
-            <div class="flex items-center gap-1 text-slate-600" title="${member.status === 'stationary' ? 'Estacionario: el dispositivo está detenido en este lugar (0 km/h)' : member.status === 'walking' ? 'En movimiento' : 'Alerta SOS'}">
-              <i class="ph-bold ${member.status === 'walking' ? 'ph-person-simple-walk text-blue-600' : member.status === 'sos' ? 'ph-warning text-red-600' : 'ph-map-pin text-slate-400'}"></i>
-              <span class="capitalize">${member.status === 'sos' ? '¡SOS!' : member.status === 'walking' ? `${member.speedKmh} km/h` : 'Estacionario'}</span>
+            <div onclick="event.stopPropagation(); forceRefreshMyGps('${member.id}')" class="flex items-center gap-1 text-blue-600 hover:text-blue-800 cursor-pointer transition" title="Clic para actualizar tu ubicación GPS exacta en este momento">
+              <i class="ph-bold ${member.status === 'walking' ? 'ph-person-simple-walk text-blue-600' : member.status === 'sos' ? 'ph-warning text-red-600' : 'ph-gps-fix text-blue-600'}"></i>
+              <span class="capitalize">${member.status === 'sos' ? '¡SOS!' : member.status === 'walking' ? `${member.speedKmh} km/h` : 'Actualizar GPS'}</span>
             </div>
           </div>
         </div>
@@ -495,8 +637,12 @@ function centerMapOnCircle() {
   state.members.forEach(m => {
     if (m.lastLocation) group.push([m.lastLocation.lat, m.lastLocation.lng]);
   });
-  if (group.length > 0) {
+  if (group.length === 1) {
+    map.flyTo(group[0], 16, { duration: 1.2 });
+  } else if (group.length > 1) {
     map.fitBounds(L.latLngBounds(group).pad(0.3));
+  } else if (userLiveCoords) {
+    map.flyTo([userLiveCoords.lat, userLiveCoords.lng], 16, { duration: 1.2 });
   }
 }
 
