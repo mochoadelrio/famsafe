@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FamSafe México - Seguridad y Rastreo Familiar Inteligente</title>
-  <meta name="description" content="La única app de seguridad familiar en México con cero venta de datos, mínimo consumo de batería y modo privacidad para adolescentes.">
+  <title>FamSafe México - Planes y Suscripciones</title>
+  <meta name="description" content="Seguridad familiar y rastreo inteligente en México con planes en pesos mexicanos. Cero venta de datos y ahorro extremo de batería.">
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,334 +15,271 @@
 
   <style>
     * { font-family: 'Plus Jakarta Sans', sans-serif; }
-    .hero-gradient {
-      background: radial-gradient(120% 120% at 50% 10%, #eff6ff 0%, #ffffff 60%, #f8fafc 100%);
-    }
-    .badge-blur {
-      backdrop-filter: blur(8px);
-      background: rgba(255, 255, 255, 0.85);
-    }
   </style>
 </head>
-<body class="bg-white text-slate-900 antialiased selection:bg-blue-500 selection:text-white">
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-500 selection:text-white">
 
-  <!-- NAVBAR -->
-  <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
-    <div class="max-w-6xl mx-auto px-6 h-18 py-3.5 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2.5">
-        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
-          <i class="ph-bold ph-shield-check text-2xl"></i>
+  <!-- COMPACT TOP BAR -->
+  <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 py-2.5 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+          <i class="ph-bold ph-shield-check text-xl"></i>
         </div>
-        <div>
-          <span class="text-xl font-black tracking-tight text-slate-900 block leading-none">FamSafe</span>
-          <span class="text-[10px] text-emerald-600 font-extrabold tracking-wider uppercase">México & LATAM</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-lg font-black tracking-tight text-slate-900">FamSafe</span>
+          <span class="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">MXN 🇲🇽</span>
         </div>
       </a>
 
-      <div class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-        <a href="#diferenciadores" class="hover:text-blue-600 transition">¿Por qué FamSafe?</a>
-        <a href="#caracteristicas" class="hover:text-blue-600 transition">Funciones</a>
-        <a href="#precios" class="hover:text-blue-600 transition">Precios en MXN</a>
-        <a href="#faq" class="hover:text-blue-600 transition">Preguntas Frecuentes</a>
-      </div>
-
       <div class="flex items-center gap-3">
-        <a href="/" class="text-xs md:text-sm font-bold text-slate-700 hover:text-blue-600 px-3 py-2 transition">
-          Iniciar Sesión
+        <a href="/" class="text-xs font-bold text-slate-600 hover:text-blue-600 px-2 py-1 transition">
+          Ver Mapa en Vivo
         </a>
-        <a href="#precios" class="text-xs md:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full shadow-md shadow-blue-200 transition transform hover:-translate-y-0.5">
-          Probar 7 Días Gratis
+        <a href="#precios" class="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg shadow-sm transition">
+          Ver Paquetes
         </a>
       </div>
     </div>
   </nav>
 
-  <!-- HERO SECTION -->
-  <section class="hero-gradient pt-16 pb-20 px-6 border-b border-slate-100 relative overflow-hidden">
-    <div class="max-w-5xl mx-auto text-center space-y-6">
+  <!-- COMPACT HERO & HEADLINE (ABOVE THE FOLD) -->
+  <header class="pt-6 pb-4 px-4 text-center max-w-4xl mx-auto space-y-2.5">
+    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100/70 text-blue-800 text-[11px] font-bold">
+      <i class="ph-fill ph-shield-check text-blue-600"></i>
+      <span>Cero venta de datos &bull; Batería que dura todo el día (&lt; 3%)</span>
+    </div>
 
-      <!-- Trust Pill -->
-      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-200 bg-blue-50/70 text-blue-800 text-xs font-bold shadow-sm">
-        <i class="ph-fill ph-shield-check text-blue-600 text-base"></i>
-        <span>Garantía de Cero Venta de Datos: La ubicación de tus hijos nunca se monetiza</span>
+    <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+      Suscripciones Familiares en Pesos Mexicanos
+    </h1>
+    <p class="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto font-medium">
+      Una sola suscripción protege a toda tu familia. Sin cobros sorpresa por hijo extra.
+    </p>
+
+    <!-- BILLING TOGGLE (VISIBLE IMMEDIATELY) -->
+    <div class="pt-2 flex items-center justify-center">
+      <div class="inline-flex items-center bg-white p-1 rounded-full border border-slate-300 shadow-sm">
+        <button id="toggle-monthly" onclick="setBilling('monthly')" class="px-4 py-1.5 rounded-full text-xs font-bold transition bg-blue-600 text-white shadow-sm">
+          Pago Mensual
+        </button>
+        <button id="toggle-annual" onclick="setBilling('annual')" class="px-4 py-1.5 rounded-full text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center gap-1">
+          <span>Pago Anual</span>
+          <span class="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded-full font-black uppercase">Ahorra 33%</span>
+        </button>
       </div>
+    </div>
+  </header>
 
-      <!-- Main Heading -->
-      <h1 class="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
-        La tranquilidad de saber dónde está tu familia, <br class="hidden sm:inline">
-        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-          sin vaciar su batería ni espiar su privacidad.
-        </span>
-      </h1>
+  <!-- PRICING CARDS SECTION (RIGHT AT THE TOP) -->
+  <main id="precios" class="px-4 pb-8 max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
 
-      <p class="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-medium">
-        Rastreo en tiempo real para padres con alertas inteligentes de llegada a la escuela, botón SOS con audio ambiental y modo especial para adolescentes.
-      </p>
+      <!-- PLAN 1: BÁSICO (COBRADO MENSUAL Y ANUAL) -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900">Plan Básico</h3>
+            <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Esencial</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Para parejas o familias pequeñas con 1 hijo.</p>
 
-      <!-- CTA Buttons -->
-      <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a href="#precios" class="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-base rounded-2xl shadow-xl shadow-blue-200 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
-          <span>Comenzar Prueba Gratuita</span>
-          <i class="ph-bold ph-arrow-right"></i>
+          <div class="pt-1">
+            <div class="flex items-baseline gap-1">
+              <span class="text-3xl font-black text-slate-900" id="price-basic">$49</span>
+              <span class="text-xs text-slate-500 font-semibold" id="period-basic">MXN / mes</span>
+            </div>
+            <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="subtext-basic">Cobrado mes a mes</p>
+          </div>
+
+          <ul class="text-xs text-slate-600 space-y-2 pt-3 border-t border-slate-100">
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>Hasta 2 integrantes</strong></li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>2 Zonas Seguras</strong> (ej. Casa y Escuela)</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Alertas de batería baja (&lt; 15%)</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Historial de rutas de 7 días</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Botón de alerta de pánico</li>
+          </ul>
+        </div>
+
+        <a href="/" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-800 hover:bg-slate-50 text-center transition block">
+          Elegir Plan Básico
         </a>
-        <a href="/" class="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-base rounded-2xl shadow-sm transition flex items-center justify-center gap-2">
-          <i class="ph-bold ph-play-circle text-blue-600 text-xl"></i>
-          <span>Ver Demostración en Vivo</span>
+      </div>
+
+      <!-- PLAN 2: FAMILIAR PRO (MÁS VENDIDO) -->
+      <div class="bg-gradient-to-b from-blue-50/50 to-white border-2 border-blue-600 rounded-2xl p-5 flex flex-col justify-between shadow-lg relative">
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm">
+          Más Popular
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900">Familiar Pro</h3>
+            <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Recomendado</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Tranquilidad absoluta para toda la familia.</p>
+
+          <div class="pt-1">
+            <div class="flex items-baseline gap-1">
+              <span class="text-3xl font-black text-blue-600" id="price-pro">$149</span>
+              <span class="text-xs text-slate-500 font-semibold" id="period-pro">MXN / mes</span>
+            </div>
+            <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="subtext-pro">Cobrado mes a mes</p>
+          </div>
+
+          <ul class="text-xs text-slate-700 space-y-2 pt-3 border-t border-blue-100">
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>Hasta 10 integrantes familiares</strong></li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> <strong>Zonas Seguras ilimitadas</strong> con horarios</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Acompáñame a Casa (Walk With Me)</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Modo Privacidad para Adolescentes</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Historial interactivo de 30 días</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-500 text-sm"></i> Alertas de llegada y salida escolares</li>
+          </ul>
+        </div>
+
+        <a href="/" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs text-center shadow-md shadow-blue-200 transition block">
+          Iniciar Prueba Gratis de 7 Días
         </a>
       </div>
 
-      <!-- Trust Badges -->
-      <div class="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
-        <div class="badge-blur p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-          <i class="ph-bold ph-battery-charging text-emerald-500 text-2xl shrink-0"></i>
-          <span class="text-xs font-bold text-slate-700">&lt; 3% Consumo diario de batería</span>
-        </div>
-        <div class="badge-blur p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-          <i class="ph-bold ph-lock-key text-blue-500 text-2xl shrink-0"></i>
-          <span class="text-xs font-bold text-slate-700">Cifrado E2EE sin publicidad</span>
-        </div>
-        <div class="badge-blur p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-          <i class="ph-bold ph-device-mobile text-purple-500 text-2xl shrink-0"></i>
-          <span class="text-xs font-bold text-slate-700">iOS, Android y Portal Web</span>
-        </div>
-        <div class="badge-blur p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-          <i class="ph-bold ph-warning-circle text-red-500 text-2xl shrink-0"></i>
-          <span class="text-xs font-bold text-slate-700">SOS con audio ambiental</span>
-        </div>
-      </div>
+      <!-- PLAN 3: GUARDIAN PLUS (ÉLITE) -->
+      <div class="bg-white border border-purple-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900">Guardian Plus</h3>
+            <span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">Protección Élite</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Audio en vivo y sensores inteligentes de impacto.</p>
 
-    </div>
-  </section>
-
-  <!-- DIFERENCIADORES: POR QUÉ CAMBIARSE -->
-  <section id="diferenciadores" class="py-20 px-6 max-w-6xl mx-auto">
-    <div class="text-center space-y-3 mb-16">
-      <span class="text-xs font-extrabold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">Ventajas Exclusivas</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900">¿Por qué las familias en México eligen FamSafe?</h2>
-      <p class="text-slate-600 max-w-xl mx-auto text-sm">Diseñado para resolver las tres peores quejas de aplicaciones como Life360 o Find My.</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <!-- Card 1 -->
-      <div class="bg-slate-50 border border-slate-200 rounded-3xl p-8 space-y-4 hover:shadow-xl transition">
-        <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl font-bold">
-          <i class="ph-bold ph-battery-vertical-high"></i>
-        </div>
-        <h3 class="text-xl font-bold text-slate-900">Batería que sí dura todo el día</h3>
-        <p class="text-slate-600 text-sm leading-relaxed">
-          Otras apps drenan hasta el 25% de la pila del menor. Nuestro motor inteligente apaga el GPS cuando el niño está sentado en el aula y solo despierta con movimiento real detectado por acelerómetros.
-        </p>
-      </div>
-
-      <!-- Card 2 -->
-      <div class="bg-slate-50 border border-slate-200 rounded-3xl p-8 space-y-4 hover:shadow-xl transition">
-        <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center text-3xl font-bold">
-          <i class="ph-bold ph-users-three"></i>
-        </div>
-        <h3 class="text-xl font-bold text-slate-900">Modo Adolescente: Fin a las peleas</h3>
-        <p class="text-slate-600 text-sm leading-relaxed">
-          Los jóvenes de 13 a 17 años odian sentirse vigilados y desinstalan la app. Con nuestro <em>Pacto Familiar</em>, sus rutas privadas se respetan y la ubicación en vivo solo se comparte de noche, en fiestas o en emergencias.
-        </p>
-      </div>
-
-      <!-- Card 3 -->
-      <div class="bg-slate-50 border border-slate-200 rounded-3xl p-8 space-y-4 hover:shadow-xl transition">
-        <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center text-3xl font-bold">
-          <i class="ph-bold ph-speaker-high"></i>
-        </div>
-        <h3 class="text-xl font-bold text-slate-900">SOS con Audio Ambiental en Vivo</h3>
-        <p class="text-slate-600 text-sm leading-relaxed">
-          Una notificación simple no basta en una emergencia. Al pulsar SOS, el teléfono de los padres suena ignorando el modo silencio y transmite 30 segundos de audio ambiental para saber si están en peligro real.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- PRICING SECTION EN PESOS MEXICANOS (MXN) -->
-  <section id="precios" class="py-20 px-6 bg-slate-900 text-white relative">
-    <div class="max-w-6xl mx-auto space-y-12">
-
-      <div class="text-center space-y-4">
-        <span class="text-xs font-extrabold text-blue-400 uppercase tracking-widest bg-blue-900/60 border border-blue-700 px-3 py-1 rounded-full">Planes Flexibles en Moneda Nacional</span>
-        <h2 class="text-3xl md:text-5xl font-black">Protección para toda la familia en Pesos Mexicanos (MXN)</h2>
-        <p class="text-slate-400 max-w-xl mx-auto text-sm md:text-base">Una sola suscripción cubre a papá, mamá, hijos y abuelos. Sin cobros sorpresa por hijo extra.</p>
-
-        <!-- Billing Toggle -->
-        <div class="inline-flex items-center bg-slate-800 p-1.5 rounded-full border border-slate-700 mt-4">
-          <button id="toggle-monthly" onclick="setBilling('monthly')" class="px-5 py-2 rounded-full text-xs font-bold transition bg-blue-600 text-white">
-            Mensual
-          </button>
-          <button id="toggle-annual" onclick="setBilling('annual')" class="px-5 py-2 rounded-full text-xs font-bold transition text-slate-300 hover:text-white flex items-center gap-1.5">
-            <span>Anual</span>
-            <span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase">Ahorra 33%</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Pricing Cards Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-4">
-
-        <!-- Plan 1: Gratuito -->
-        <div class="bg-slate-800/80 border border-slate-700 rounded-3xl p-8 flex flex-col justify-between hover:border-slate-600 transition">
-          <div class="space-y-4">
-            <h3 class="text-xl font-bold text-white">Plan Básico</h3>
-            <p class="text-xs text-slate-400">Para conocer la plataforma con lo indispensable.</p>
-            <div class="pt-2">
-              <span class="text-4xl font-black">$0</span>
-              <span class="text-xs text-slate-400 font-semibold">MXN / mes gratis para siempre</span>
+          <div class="pt-1">
+            <div class="flex items-baseline gap-1">
+              <span class="text-3xl font-black text-purple-600" id="price-guardian">$289</span>
+              <span class="text-xs text-slate-500 font-semibold" id="period-guardian">MXN / mes</span>
             </div>
-            <ul class="text-xs text-slate-300 space-y-3 pt-4 border-t border-slate-700/60">
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Hasta 2 integrantes</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> 1 Zona Segura (ej. Casa)</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Alertas de batería baja</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Historial de 48 horas</li>
-            </ul>
+            <p class="text-[11px] text-emerald-600 font-bold mt-0.5" id="subtext-guardian">Cobrado mes a mes</p>
           </div>
-          <a href="/" class="mt-8 w-full py-3 rounded-xl border border-slate-600 font-bold text-xs text-white hover:bg-slate-700 text-center transition">
-            Comenzar Gratis
-          </a>
+
+          <ul class="text-xs text-slate-600 space-y-2 pt-3 border-t border-purple-100">
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Todo lo del Plan Pro sin límites</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> <strong>Audio ambiental en vivo en botón SOS</strong></li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Detección de impacto vehicular y frenazos</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Detección de desvíos de ruta por IA</li>
+            <li class="flex items-center gap-2"><i class="ph-bold ph-check text-purple-500 text-sm"></i> Historial completo de 90 días</li>
+          </ul>
         </div>
 
-        <!-- Plan 2: Familiar Pro (Recomendado) -->
-        <div class="bg-gradient-to-b from-blue-900/60 to-slate-800 border-2 border-blue-500 rounded-3xl p-8 flex flex-col justify-between shadow-2xl relative">
-          <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full shadow-md">
-            El Más Elegido por Familias
-          </div>
-          <div class="space-y-4">
-            <h3 class="text-xl font-bold text-white">Familiar Pro</h3>
-            <p class="text-xs text-blue-200">Tranquilidad absoluta para padres e hijos en México.</p>
-            <div class="pt-2">
-              <span class="text-4xl font-black" id="price-pro">$149</span>
-              <span class="text-xs text-blue-200 font-semibold" id="period-pro">MXN / mes</span>
-              <p class="text-[11px] text-emerald-400 font-bold mt-1" id="subtext-pro">Cobrado mes a mes</p>
-            </div>
-            <ul class="text-xs text-slate-200 space-y-3 pt-4 border-t border-blue-800">
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> <strong>Hasta 10 integrantes familiares</strong></li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> <strong>Geocercas ilimitadas</strong> (Escuela, Casa, Club)</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Horarios de entrada/salida escolar</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Acompáñame a Casa (Walk With Me)</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Modo Privacidad para Adolescentes</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-emerald-400 text-base"></i> Historial interactivo de 30 días</li>
-            </ul>
-          </div>
-          <a href="/" class="mt-8 w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-extrabold text-xs text-white text-center shadow-lg shadow-blue-600/30 transition">
-            Iniciar Prueba Gratis de 7 Días
-          </a>
-        </div>
-
-        <!-- Plan 3: Guardian Plus -->
-        <div class="bg-slate-800/80 border border-purple-500/50 rounded-3xl p-8 flex flex-col justify-between hover:border-purple-400 transition">
-          <div class="space-y-4">
-            <h3 class="text-xl font-bold text-white">Guardian Plus</h3>
-            <p class="text-xs text-slate-400">Seguridad infantil élite con audio y sensores de IA.</p>
-            <div class="pt-2">
-              <span class="text-4xl font-black" id="price-guardian">$289</span>
-              <span class="text-xs text-slate-400 font-semibold" id="period-guardian">MXN / mes</span>
-              <p class="text-[11px] text-emerald-400 font-bold mt-1" id="subtext-guardian">Cobrado mes a mes</p>
-            </div>
-            <ul class="text-xs text-slate-300 space-y-3 pt-4 border-t border-slate-700/60">
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-purple-400 text-base"></i> Todo lo del Plan Pro sin límites</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-purple-400 text-base"></i> <strong>Audio ambiental en vivo en botón SOS</strong></li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-purple-400 text-base"></i> Detección de impacto vehicular y frenazos</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-purple-400 text-base"></i> Alerta de desvío inusual de rutas por IA</li>
-              <li class="flex items-center gap-2.5"><i class="ph-bold ph-check text-purple-400 text-base"></i> Historial completo de 90 días</li>
-            </ul>
-          </div>
-          <a href="/" class="mt-8 w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-xs text-white text-center transition">
-            Elegir Guardian Plus
-          </a>
-        </div>
-
+        <a href="/" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 font-bold text-xs text-white text-center shadow-md shadow-purple-200 transition block">
+          Elegir Guardian Plus
+        </a>
       </div>
-
-      <!-- Trust note -->
-      <p class="text-center text-xs text-slate-400">
-        💳 Pagos seguros procesados en Pesos Mexicanos (MXN). Aceptamos tarjetas de débito, crédito y Apple Pay / Google Pay. Cancela en cualquier momento con 1 clic.
-      </p>
 
     </div>
-  </section>
 
-  <!-- FAQ SECTION -->
-  <section id="faq" class="py-20 px-6 max-w-4xl mx-auto space-y-12">
-    <div class="text-center space-y-3">
-      <h2 class="text-3xl font-extrabold text-slate-900">Preguntas Frecuentes</h2>
-      <p class="text-slate-500 text-sm">Todo lo que necesitas saber antes de empezar.</p>
+    <!-- Security & Guarantee note -->
+    <div class="mt-4 text-center text-[11px] text-slate-500 flex flex-wrap items-center justify-center gap-4">
+      <span class="flex items-center gap-1"><i class="ph-bold ph-shield-check text-emerald-600"></i> Garantía 7 días gratis</span>
+      <span class="flex items-center gap-1"><i class="ph-bold ph-credit-card text-blue-600"></i> Tarjeta de débito/crédito, OXXO y SPEI</span>
+      <span class="flex items-center gap-1"><i class="ph-bold ph-x-circle text-slate-400"></i> Cancela cuando quieras sin contratos</span>
     </div>
+  </main>
 
-    <div class="space-y-4 text-sm">
-      <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-2">
-        <h4 class="font-bold text-slate-900 text-base">¿Funciona si mis hijos tienen Android y yo tengo iPhone?</h4>
-        <p class="text-slate-600 leading-relaxed">
-          Sí, al 100%. FamSafe está desarrollado para conectar perfectamente dispositivos sin importar si un miembro usa iPhone, Samsung, Xiaomi o Motorola, además de contar con acceso web desde cualquier computadora.
-        </p>
+  <!-- COMPACT FEATURES (3 MINI CARDS) -->
+  <section class="py-8 px-4 border-t border-slate-200 bg-white">
+    <div class="max-w-5xl mx-auto space-y-6">
+      <div class="text-center">
+        <h2 class="text-xl font-bold text-slate-900">¿Por qué cambiarte a FamSafe?</h2>
       </div>
 
-      <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-2">
-        <h4 class="font-bold text-slate-900 text-base">¿Cómo garantizan que la batería no se agota rápido?</h4>
-        <p class="text-slate-600 leading-relaxed">
-          A diferencia de otras apps que mantienen el sensor GPS encendido 24/7 gastando batería y datos, FamSafe usa algoritmos inerciales: cuando el teléfono está quieto sobre la mesa del aula o en la recámara, el GPS de alta potencia se apaga por completo.
-        </p>
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start gap-3">
+          <i class="ph-bold ph-battery-vertical-high text-emerald-600 text-2xl shrink-0"></i>
+          <div>
+            <strong class="text-slate-900 font-bold block mb-0.5">Batería &lt; 3% al día</strong>
+            <p class="text-slate-500 leading-snug">El GPS se duerme mientras el niño está en clase y solo despierta al caminar.</p>
+          </div>
+        </div>
 
-      <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-2">
-        <h4 class="font-bold text-slate-900 text-base">¿Mis hijos adolescentes pueden apagar la app?</h4>
-        <p class="text-slate-600 leading-relaxed">
-          El 90% de los adolescentes apagan apps como Life360 porque sienten que sus padres los vigilan en todo momento. FamSafe soluciona esto con el <strong>Modo Privacidad Adolescente</strong>: no se muestra su punto exacto segundo a segundo cuando están en la escuela o con amigos, pero sí alerta si salen de la zona acordada o en horarios nocturnos.
-        </p>
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start gap-3">
+          <i class="ph-bold ph-lock-key text-blue-600 text-2xl shrink-0"></i>
+          <div>
+            <strong class="text-slate-900 font-bold block mb-0.5">Cero Venta de Datos</strong>
+            <p class="text-slate-500 leading-snug">A diferencia de Life360, jamás vendemos las coordenadas de tus hijos a terceros.</p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start gap-3">
+          <i class="ph-bold ph-users-three text-purple-600 text-2xl shrink-0"></i>
+          <div>
+            <strong class="text-slate-900 font-bold block mb-0.5">Modo Adolescente</strong>
+            <p class="text-slate-500 leading-snug">Rastreo con respeto y privacidad para que los jóvenes no apaguen la app.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- FOOTER -->
-  <footer class="bg-slate-950 text-slate-400 py-12 px-6 border-t border-slate-800 text-xs">
-    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-      <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
-          <i class="ph-bold ph-shield-check"></i>
-        </div>
-        <span class="text-white font-bold text-base">FamSafe</span>
-        <span class="text-[11px] text-slate-500">© 2026 FamSafe Technologies. Todos los derechos reservados.</span>
-      </div>
-      <div class="flex items-center gap-6">
-        <a href="#" class="hover:text-white transition">Términos de Servicio</a>
-        <a href="#" class="hover:text-white transition">Aviso de Privacidad (Cero Venta de Datos)</a>
-        <a href="mailto:soporte@famsafe.mx" class="hover:text-white transition">Contacto</a>
+  <!-- COMPACT FOOTER -->
+  <footer class="py-6 px-4 bg-slate-900 text-slate-400 text-xs border-t border-slate-800">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+      <span class="font-bold text-white">FamSafe México &bull; 2026</span>
+      <div class="flex gap-4 text-[11px]">
+        <a href="/" class="hover:text-white">Abrir App Web</a>
+        <a href="#" class="hover:text-white">Aviso de Privacidad</a>
+        <a href="#" class="hover:text-white">Términos</a>
       </div>
     </div>
   </footer>
 
-  <!-- Script for Pricing Toggle -->
+  <!-- SCRIPT FOR DYNAMIC BILLING TOGGLE IN PESOS MEXICANOS (MXN) -->
   <script>
     function setBilling(mode) {
       const btnMonthly = document.getElementById('toggle-monthly');
       const btnAnnual = document.getElementById('toggle-annual');
+
+      const priceBasic = document.getElementById('price-basic');
+      const periodBasic = document.getElementById('period-basic');
+      const subtextBasic = document.getElementById('subtext-basic');
+
       const pricePro = document.getElementById('price-pro');
       const periodPro = document.getElementById('period-pro');
       const subtextPro = document.getElementById('subtext-pro');
+
       const priceGuardian = document.getElementById('price-guardian');
       const periodGuardian = document.getElementById('period-guardian');
       const subtextGuardian = document.getElementById('subtext-guardian');
 
       if (mode === 'annual') {
-        btnAnnual.className = "px-5 py-2 rounded-full text-xs font-bold transition bg-blue-600 text-white flex items-center gap-1.5";
-        btnMonthly.className = "px-5 py-2 rounded-full text-xs font-bold transition text-slate-300 hover:text-white";
+        btnAnnual.className = "px-4 py-1.5 rounded-full text-xs font-bold transition bg-blue-600 text-white shadow-sm flex items-center gap-1";
+        btnMonthly.className = "px-4 py-1.5 rounded-full text-xs font-bold transition text-slate-600 hover:text-slate-900";
 
+        // Basic Annual: $399 MXN/año ($33 MXN/mes)
+        priceBasic.innerText = "$33";
+        periodBasic.innerText = "MXN / mes";
+        subtextBasic.innerText = "$399 MXN al año (Ahorras $189 MXN)";
+
+        // Pro Annual: $1,199 MXN/año ($99 MXN/mes)
         pricePro.innerText = "$99";
         periodPro.innerText = "MXN / mes";
-        subtextPro.innerText = "$1,199 MXN facturados al año (Ahorras $589 MXN)";
+        subtextPro.innerText = "$1,199 MXN al año (Ahorras $589 MXN)";
 
+        // Guardian Annual: $2,299 MXN/año ($191 MXN/mes)
         priceGuardian.innerText = "$191";
         periodGuardian.innerText = "MXN / mes";
-        subtextGuardian.innerText = "$2,299 MXN facturados al año (Ahorras $1,169 MXN)";
+        subtextGuardian.innerText = "$2,299 MXN al año (Ahorras $1,169 MXN)";
       } else {
-        btnMonthly.className = "px-5 py-2 rounded-full text-xs font-bold transition bg-blue-600 text-white";
-        btnAnnual.className = "px-5 py-2 rounded-full text-xs font-bold transition text-slate-300 hover:text-white flex items-center gap-1.5";
+        btnMonthly.className = "px-4 py-1.5 rounded-full text-xs font-bold transition bg-blue-600 text-white shadow-sm";
+        btnAnnual.className = "px-4 py-1.5 rounded-full text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center gap-1";
 
+        // Basic Monthly: $49 MXN/mes
+        priceBasic.innerText = "$49";
+        periodBasic.innerText = "MXN / mes";
+        subtextBasic.innerText = "Cobrado mes a mes";
+
+        // Pro Monthly: $149 MXN/mes
         pricePro.innerText = "$149";
         periodPro.innerText = "MXN / mes";
         subtextPro.innerText = "Cobrado mes a mes";
 
+        // Guardian Monthly: $289 MXN/mes
         priceGuardian.innerText = "$289";
         periodGuardian.innerText = "MXN / mes";
         subtextGuardian.innerText = "Cobrado mes a mes";
