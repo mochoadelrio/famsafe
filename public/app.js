@@ -2,7 +2,11 @@
 const BACKEND_URL = window.location.hostname.includes('vercel.app')
   ? 'https://famsafe.onrender.com'
   : '';
-let CURRENT_CIRCLE_ID = localStorage.getItem('famsafe_circle_id') || "circle-garcia-001";
+let CURRENT_CIRCLE_ID = localStorage.getItem('famsafe_circle_id');
+if (CURRENT_CIRCLE_ID === 'circle-garcia-001' || CURRENT_CIRCLE_ID === 'undefined' || !CURRENT_CIRCLE_ID) {
+  CURRENT_CIRCLE_ID = null;
+  localStorage.removeItem('famsafe_circle_id');
+}
 let socket;
 let map;
 let memberMarkers = {}; // id -> L.marker
@@ -199,10 +203,22 @@ function renderEmptyCircleState() {
         <p class="text-[11px] text-slate-500 mt-1">Registra a tu familia para comenzar a ver a tus seres queridos en este mapa.</p>
       </div>
       <button onclick="openAuthModal()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
-        Comenzar Ahora
+        Crear Mi Familia
       </button>
     </div>
   `;
+
+  const zonesContainer = document.getElementById('zones-container');
+  if (zonesContainer) zonesContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No hay zonas configuradas</p>';
+  const alertsContainer = document.getElementById('alerts-container');
+  if (alertsContainer) alertsContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Sin alertas recientes</p>';
+
+  if (map) {
+    Object.values(memberMarkers).forEach(m => map.removeLayer(m));
+    memberMarkers = {};
+    Object.values(zoneCircles).forEach(c => map.removeLayer(c));
+    zoneCircles = {};
+  }
 }
 
 // Render Top Bar Info
@@ -211,7 +227,7 @@ function renderHeader() {
   document.getElementById('circle-name').innerText = state.circle.name;
   document.getElementById('circle-code').innerText = state.circle.inviteCode;
 
-  const plan = state.currentPlan || { name: "Plan Pro ($7.99/mes)" };
+  const plan = state.currentPlan || { name: "Plan Pro ($149 MXN/mes)" };
   document.getElementById('plan-badge').innerText = plan.name;
 }
 
