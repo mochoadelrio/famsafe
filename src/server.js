@@ -33,7 +33,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Register a New Family Circle
 app.post('/api/auth/register-family', (req, res) => {
-  const { familyName, parentName, email, phone, password, plan } = req.body;
+  const { familyName, parentName, email, phone, password, plan, lat, lng, address } = req.body;
   if (!familyName || !parentName || !email || !password) {
     return res.status(400).json({ error: "Todos los campos principales son requeridos." });
   }
@@ -45,7 +45,10 @@ app.post('/api/auth/register-family', (req, res) => {
       email,
       phone,
       password,
-      plan: plan || "pro_family"
+      plan: plan || "pro_family",
+      lat: lat ? parseFloat(lat) : undefined,
+      lng: lng ? parseFloat(lng) : undefined,
+      address
     });
 
     res.json({
@@ -82,7 +85,7 @@ app.post('/api/auth/login', (req, res) => {
 
 // Join Family by 6-digit Invite Code
 app.post('/api/circles/join', (req, res) => {
-  const { inviteCode, memberName, role, phone } = req.body;
+  const { inviteCode, memberName, role, phone, lat, lng, address } = req.body;
   if (!inviteCode || !memberName) {
     return res.status(400).json({ error: "Código de invitación y nombre requeridos." });
   }
@@ -92,7 +95,10 @@ app.post('/api/circles/join', (req, res) => {
       inviteCode,
       memberName,
       role: role || "child",
-      phone: phone || ""
+      phone: phone || "",
+      lat: lat ? parseFloat(lat) : undefined,
+      lng: lng ? parseFloat(lng) : undefined,
+      address
     });
 
     // Notify circle via WebSocket

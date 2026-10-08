@@ -54,12 +54,14 @@ function playChime(type = 'normal') {
 
 let currentTileLayer = 'osm';
 let tileLayerInstance;
+let userLiveCoords = null;
+let userCurrentLocationMarker = null;
 
 // Map Initialization
 function initMap() {
   map = L.map('map', {
     zoomControl: false
-  }).setView([40.416775, -3.703790], 15);
+  }).setView([19.4326, -99.1332], 13); // Default Mexico City fallback until GPS coordinates arrive
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -68,6 +70,62 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
   }).addTo(map);
+
+  // Auto-detect real user city and location
+  detectUserLocation();
+}
+
+function detectUserLocation() {
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        userLiveCoords = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        console.log("📍 Ubicación GPS real detectada:", userLiveCoords);
+
+        if (map) {
+          // If no members are loaded yet, fly directly to user's real city/street!
+          if (state.members.length === 0) {
+            map.flyTo([userLiveCoords.lat, userLiveCoords.lng], 15, { duration: 1.5 });
+          }
+
+          // Add a pulsing blue dot for the current device
+          if (!userCurrentLocationMarker) {
+            const myDotHtml = `
+              <div class="relative flex items-center justify-center">
+                <div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div>
+                <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
+              </div>
+            `;
+            const icon = L.divIcon({ html: myDotHtml, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
+            userCurrentLocationMarker = L.marker([userLiveCoords.lat, userLiveCoords.lng], { icon }).addTo(map);
+            userCurrentLocationMarker.bindTooltip("<strong>📍 Tu ubicación actual</strong>", { permanent: false });
+          } else {
+            userCurrentLocationMarker.setLatLng([userLiveCoords.lat, userLiveCoords.lng]);
+          }
+        }
+      },
+      (err) => {
+        console.warn("GPS no disponible o permiso no otorgado, usando ubicación por IP:", err.message);
+        // Fallback to IP geolocation for city
+        fetch('https://ipapi.co/json/')
+          .then(r => r.json())
+          .then(data => {
+            if (data.latitude && data.longitude) {
+              userLiveCoords = { lat: data.latitude, lng: data.longitude };
+              if (map && state.members.length === 0) {
+                map.flyTo([data.latitude, data.longitude], 13, { duration: 1.5 });
+              }
+            }
+          })
+          .catch(() => {});
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }
 }
 
 function toggleSatelliteView() {
@@ -90,8 +148,24 @@ function toggleSatelliteView() {
 
 // Fetch Full Initial State from Backend
 async function fetchCircleData() {
+  if (!CURRENT_CIRCLE_ID) {
+    state = { circle: null, members: [], safeZones: [], alerts: [], activeSos: [], activeWalks: [] };
+    renderEmptyCircleState();
+    openAuthModal();
+    return;
+  }
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/circles/${CURRENT_CIRCLE_ID}`);
+    if (!res.ok) {
+      CURRENT_CIRCLE_ID = null;
+      localStorage.removeItem('famsafe_circle_id');
+      state = { circle: null, members: [], safeZones: [], alerts: [], activeSos: [], activeWalks: [] };
+      renderEmptyCircleState();
+      openAuthModal();
+      return;
+    }
+
     const data = await res.json();
     state = data;
 
@@ -104,7 +178,31 @@ async function fetchCircleData() {
     checkActiveWalks();
   } catch (err) {
     console.error("Error fetching circle data:", err);
+    renderEmptyCircleState();
+    openAuthModal();
   }
+}
+
+function renderEmptyCircleState() {
+  document.getElementById('circle-name').innerText = "Sin Círculo Activo";
+  document.getElementById('circle-code').innerText = "------";
+  document.getElementById('plan-badge').innerText = "Crear Familia";
+
+  const container = document.getElementById('members-container');
+  container.innerHTML = `
+    <div class="text-center p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 space-y-3">
+      <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
+        <i class="ph-bold ph-users-three"></i>
+      </div>
+      <div>
+        <h4 class="font-bold text-xs text-slate-800">Crea tu Círculo Familiar</h4>
+        <p class="text-[11px] text-slate-500 mt-1">Registra a tu familia para comenzar a ver a tus seres queridos en este mapa.</p>
+      </div>
+      <button onclick="openAuthModal()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+        Comenzar Ahora
+      </button>
+    </div>
+  `;
 }
 
 // Render Top Bar Info
@@ -264,6 +362,15 @@ function renderMapElements() {
   state.members.forEach(member => {
     updateOrCreateMemberMarker(member);
   });
+
+  if (state.members.length > 0) {
+    centerMapOnCircle();
+  } else if (state.safeZones.length > 0) {
+    const firstZone = state.safeZones[0];
+    map.flyTo([firstZone.lat, firstZone.lng], 15, { duration: 1.2 });
+  } else if (userLiveCoords) {
+    map.flyTo([userLiveCoords.lat, userLiveCoords.lng], 14, { duration: 1.2 });
+  }
 }
 
 function updateOrCreateMemberMarker(member) {
@@ -448,34 +555,85 @@ function switchTab(tab) {
 
 // Simulator Actions
 async function simulateMoveKid(target) {
-  await fetch(`${BACKEND_URL}/api/simulation/move-kid`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ memberId: 'user-lucas-child', target })
-  });
-  focusMemberOnMap('user-lucas-child');
-}
+  const member = state.members.find(m => m.role === 'child' || m.role === 'teen') || state.members[0];
+  if (!member) {
+    alert("Crea tu familia o agrega un familiar primero para probar la simulación.");
+    return;
+  }
+  const baseLat = (state.safeZones[0] ? state.safeZones[0].lat : member.lastLocation?.lat) || 19.4326;
+  const baseLng = (state.safeZones[0] ? state.safeZones[0].lng : member.lastLocation?.lng) || -99.1332;
 
-async function simulateLowBattery(memberId, battery) {
+  let newCoords;
+  let address;
+  let status = "walking";
+  let speed = 4.2;
+
+  if (target === 'home') {
+    newCoords = { lat: baseLat, lng: baseLng };
+    address = "Casa Familiar (Llegó a salvo)";
+    status = "stationary";
+    speed = 0;
+  } else if (target === 'school') {
+    newCoords = { lat: baseLat + 0.005, lng: baseLng - 0.004 };
+    address = "Escuela / Actividad (En destino)";
+    status = "stationary";
+    speed = 0;
+  } else {
+    const jitterLat = (Math.random() - 0.5) * 0.003;
+    const jitterLng = (Math.random() - 0.5) * 0.003;
+    newCoords = { lat: baseLat + 0.002 + jitterLat, lng: baseLng + 0.002 + jitterLng };
+    address = "En camino (En movimiento)";
+    status = "walking";
+    speed = 5.1;
+  }
+
   await fetch(`${BACKEND_URL}/api/telemetry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      memberId,
-      lat: 40.4148,
-      lng: -3.7082,
-      battery: battery
+      memberId: member.id,
+      lat: newCoords.lat,
+      lng: newCoords.lng,
+      accuracy: 8,
+      speedKmh: speed,
+      status,
+      battery: member.battery,
+      address
+    })
+  });
+  focusMemberOnMap(member.id);
+}
+
+async function simulateLowBattery(memberId, battery) {
+  const member = memberId ? state.members.find(m => m.id === memberId) : state.members[0];
+  if (!member) {
+    alert("Crea tu familia primero para probar la alerta de batería.");
+    return;
+  }
+  await fetch(`${BACKEND_URL}/api/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      memberId: member.id,
+      lat: member.lastLocation?.lat || 19.4326,
+      lng: member.lastLocation?.lng || -99.1332,
+      battery: battery !== undefined ? battery : 12
     })
   });
 }
 
 async function triggerDemoSos() {
+  const member = state.members[0];
+  if (!member) {
+    alert("Crea tu familia primero para activar un SOS.");
+    return;
+  }
   await fetch(`${BACKEND_URL}/api/sos/trigger`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      memberId: 'user-lucas-child',
-      note: 'Simulación de SOS desde el botón de pánico del menor'
+      memberId: member.id,
+      note: 'Simulación de SOS desde el botón de pánico'
     })
   });
 }
@@ -600,12 +758,17 @@ async function completeCurrentWalk() {
 }
 
 async function simulateWalkExpiry() {
-  // Start a 1-second walk to trigger expiry immediately
+  const member = state.members[0];
+  if (!member) {
+    alert("Crea tu familia primero para probar el acompañamiento.");
+    return;
+  }
+  // Start a 3-second walk to trigger expiry immediately
   const res = await fetch(`${BACKEND_URL}/api/walk/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      memberId: 'user-sofia-teen',
+      memberId: member.id,
       destinationName: 'Casa Familiar',
       estimatedMinutes: 0.05 // 3 seconds
     })
@@ -668,7 +831,14 @@ async function handleRegisterFamily(e) {
     const res = await fetch(`${BACKEND_URL}/api/auth/register-family`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ familyName, parentName, email, password })
+      body: JSON.stringify({
+        familyName,
+        parentName,
+        email,
+        password,
+        lat: userLiveCoords ? userLiveCoords.lat : undefined,
+        lng: userLiveCoords ? userLiveCoords.lng : undefined
+      })
     });
     const data = await res.json();
     if (data.error) {
@@ -700,7 +870,13 @@ async function handleJoinFamily(e) {
     const res = await fetch(`${BACKEND_URL}/api/circles/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inviteCode, memberName, role })
+      body: JSON.stringify({
+        inviteCode,
+        memberName,
+        role,
+        lat: userLiveCoords ? userLiveCoords.lat : undefined,
+        lng: userLiveCoords ? userLiveCoords.lng : undefined
+      })
     });
     const data = await res.json();
     if (data.error) {

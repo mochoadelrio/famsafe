@@ -12,172 +12,13 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initial seed data representing a modern family
+// Clean initial database structure (Zero test data)
 const initialData = {
-  circles: [
-    {
-      id: "circle-garcia-001",
-      name: "Familia García",
-      inviteCode: "FAM789",
-      plan: "pro_family", // freemium, pro_family, guardian_plus
-      subscription: {
-        status: "active",
-        planName: "Plan Familiar Pro ($7.99/mes)",
-        renewsAt: "2026-11-01T00:00:00.000Z",
-        stripeCustomerId: "cus_demo_garcia123"
-      },
-      createdAt: new Date().toISOString()
-    }
-  ],
-  members: [
-    {
-      id: "user-carlos-parent",
-      circleId: "circle-garcia-001",
-      name: "Carlos (Papá)",
-      role: "guardian", // guardian, child, teen
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-      phone: "+34 600 111 222",
-      battery: 88,
-      isCharging: false,
-      status: "stationary", // stationary, walking, driving, sos
-      speedKmh: 0,
-      privacyMode: "standard", // standard, teen_shield
-      lastLocation: {
-        lat: 40.416775,
-        lng: -3.703790,
-        accuracy: 10,
-        timestamp: new Date().toISOString(),
-        address: "Puerta del Sol, Madrid (Oficina)"
-      }
-    },
-    {
-      id: "user-elena-parent",
-      circleId: "circle-garcia-001",
-      name: "Elena (Mamá)",
-      role: "guardian",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-      phone: "+34 600 333 444",
-      battery: 64,
-      isCharging: false,
-      status: "stationary",
-      speedKmh: 0,
-      privacyMode: "standard",
-      lastLocation: {
-        lat: 40.420000,
-        lng: -3.701000,
-        accuracy: 12,
-        timestamp: new Date().toISOString(),
-        address: "Gran Vía 32, Madrid"
-      }
-    },
-    {
-      id: "user-lucas-child",
-      circleId: "circle-garcia-001",
-      name: "Lucas (Hijo - 9 años)",
-      role: "child",
-      avatar: "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=150&auto=format&fit=crop&q=80",
-      phone: "+34 600 555 666",
-      battery: 42,
-      isCharging: false,
-      status: "stationary",
-      speedKmh: 0,
-      privacyMode: "strict_child", // 24/7 tracking, high precision
-      currentZoneId: "zone-school-001",
-      lastLocation: {
-        lat: 40.412500,
-        lng: -3.705000,
-        accuracy: 8,
-        timestamp: new Date().toISOString(),
-        address: "Colegio San Martín (En clase)"
-      }
-    },
-    {
-      id: "user-sofia-teen",
-      circleId: "circle-garcia-001",
-      name: "Sofía (Hija - 15 años)",
-      role: "teen",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-      phone: "+34 600 777 888",
-      battery: 18, // Simulated low battery alert
-      isCharging: false,
-      status: "walking",
-      speedKmh: 4.8,
-      privacyMode: "teen_shield", // Smart privacy: notifies safe zones, exact route on transit or SOS
-      currentZoneId: null,
-      lastLocation: {
-        lat: 40.414800,
-        lng: -3.708200,
-        accuracy: 15,
-        timestamp: new Date().toISOString(),
-        address: "Calle Mayor, Regresando a casa"
-      }
-    }
-  ],
-  safeZones: [
-    {
-      id: "zone-home-001",
-      circleId: "circle-garcia-001",
-      name: "Casa Familiar",
-      icon: "home",
-      lat: 40.418000,
-      lng: -3.704000,
-      radiusMeters: 120,
-      color: "#10b981", // Emerald green
-      notifyOnEntry: true,
-      notifyOnExit: true
-    },
-    {
-      id: "zone-school-001",
-      circleId: "circle-garcia-001",
-      name: "Colegio San Martín",
-      icon: "school",
-      lat: 40.412500,
-      lng: -3.705000,
-      radiusMeters: 180,
-      color: "#3b82f6", // Blue
-      notifyOnEntry: true,
-      notifyOnExit: true,
-      schedule: {
-        days: [1, 2, 3, 4, 5],
-        curfewEntry: "08:30",
-        curfewExit: "16:30"
-      }
-    },
-    {
-      id: "zone-sports-001",
-      circleId: "circle-garcia-001",
-      name: "Club Deportivo",
-      icon: "football",
-      lat: 40.422000,
-      lng: -3.712000,
-      radiusMeters: 200,
-      color: "#8b5cf6", // Purple
-      notifyOnEntry: true,
-      notifyOnExit: true
-    }
-  ],
-  alerts: [
-    {
-      id: "alert-001",
-      circleId: "circle-garcia-001",
-      memberId: "user-lucas-child",
-      type: "zone_entry", // zone_entry, zone_exit, low_battery, sos, walk_alert
-      title: "Llegada al Colegio",
-      message: "Lucas ha entrado a la zona segura 'Colegio San Martín'",
-      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-      read: true
-    },
-    {
-      id: "alert-002",
-      circleId: "circle-garcia-001",
-      memberId: "user-sofia-teen",
-      type: "low_battery",
-      title: "Batería Baja",
-      message: "El teléfono de Sofía tiene 18% de batería restante.",
-      timestamp: new Date(Date.now() - 600000).toISOString(),
-      read: false
-    }
-  ],
+  circles: [],
+  members: [],
+  safeZones: [],
+  alerts: [],
+  users: [],
   activeWalkSessions: [],
   activeSosSessions: []
 };
@@ -368,7 +209,7 @@ class Database {
     return `${prefix.substring(0, 3).toUpperCase()}${num}`;
   }
 
-  createFamilyAccount({ familyName, parentName, email, phone, password, plan = "pro_family" }) {
+  createFamilyAccount({ familyName, parentName, email, phone, password, plan = "pro_family", lat, lng, address }) {
     if (!this.data.users) this.data.users = [];
 
     const existingUser = this.findUserByEmail(email);
@@ -380,6 +221,10 @@ class Database {
     const memberId = `member-${Date.now()}-guardian`;
     const userId = `user-${Date.now()}`;
     const inviteCode = this.generateInviteCode(familyName.substring(0, 3) || "FAM");
+
+    const initialLat = (lat !== undefined && !isNaN(lat)) ? parseFloat(lat) : 19.4326;
+    const initialLng = (lng !== undefined && !isNaN(lng)) ? parseFloat(lng) : -99.1332;
+    const initialAddress = address || "Casa Familiar (Ubicación GPS)";
 
     // 1. Create Circle
     const newCircle = {
@@ -396,7 +241,7 @@ class Database {
     };
     this.data.circles.push(newCircle);
 
-    // 2. Create Guardian Member
+    // 2. Create Guardian Member with real location
     const newMember = {
       id: memberId,
       circleId,
@@ -410,11 +255,11 @@ class Database {
       speedKmh: 0,
       privacyMode: "standard",
       lastLocation: {
-        lat: 19.4326, // Default CDMX coordinates
-        lng: -99.1332,
+        lat: initialLat,
+        lng: initialLng,
         accuracy: 10,
         timestamp: new Date().toISOString(),
-        address: "Ubicación inicial configurada"
+        address: initialAddress
       }
     };
     this.data.members.push(newMember);
@@ -423,7 +268,7 @@ class Database {
     const newUser = {
       id: userId,
       email: email.toLowerCase(),
-      password, // In a full prod app we bcrypt, for instant MVP simplicity
+      password,
       name: parentName,
       circleId,
       memberId,
@@ -432,14 +277,14 @@ class Database {
     };
     this.data.users.push(newUser);
 
-    // 4. Default Safe Zone: Casa Familiar
+    // 4. Default Safe Zone: Casa Familiar (Centered at user's actual home location!)
     const defaultZone = {
       id: `zone-${Date.now()}-home`,
       circleId,
       name: "Casa Familiar",
       icon: "home",
-      lat: 19.4326,
-      lng: -99.1332,
+      lat: initialLat,
+      lng: initialLng,
       radiusMeters: 150,
       color: "#10b981",
       notifyOnEntry: true,
@@ -460,7 +305,7 @@ class Database {
     return { circle: newCircle, member: newMember, user: newUser };
   }
 
-  joinFamilyWithCode({ inviteCode, memberName, role = "child", phone = "" }) {
+  joinFamilyWithCode({ inviteCode, memberName, role = "child", phone = "", lat, lng, address }) {
     const circle = this.findCircleByInviteCode(inviteCode);
     if (!circle) {
       throw new Error(`Código de invitación '${inviteCode}' no encontrado. Verifica con el administrador de la familia.`);
@@ -472,6 +317,9 @@ class Database {
       : role === 'teen'
       ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
       : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80";
+
+    const memberLat = (lat !== undefined && !isNaN(lat)) ? parseFloat(lat) : 19.4326;
+    const memberLng = (lng !== undefined && !isNaN(lng)) ? parseFloat(lng) : -99.1332;
 
     const newMember = {
       id: memberId,
@@ -486,11 +334,11 @@ class Database {
       speedKmh: 0,
       privacyMode: role === 'teen' ? 'teen_shield' : role === 'child' ? 'strict_child' : 'standard',
       lastLocation: {
-        lat: 19.4326 + (Math.random() - 0.5) * 0.005,
-        lng: -99.1332 + (Math.random() - 0.5) * 0.005,
+        lat: memberLat,
+        lng: memberLng,
         accuracy: 10,
         timestamp: new Date().toISOString(),
-        address: "Dispositivo vinculado"
+        address: address || "Dispositivo vinculado en tiempo real"
       }
     };
 

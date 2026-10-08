@@ -48,8 +48,8 @@
       <div class="flex items-center gap-1.5">
         <button onclick="openAuthModal()" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 border border-slate-200 transition">
           <i class="ph-bold ph-users-three text-blue-600 text-sm"></i>
-          <span>Círculo: <strong class="text-slate-900" id="circle-name">Familia García</strong></span>
-          <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono font-bold" id="circle-code">FAM789</span>
+          <span>Círculo: <strong class="text-slate-900" id="circle-name">Tu Familia</strong></span>
+          <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono font-bold" id="circle-code">---</span>
         </button>
         <button onclick="openInviteModal()" class="px-2.5 py-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] rounded-lg border border-[#25D366]/30 text-xs font-bold transition flex items-center gap-1" title="Invitar familiares por WhatsApp">
           <i class="ph-bold ph-whatsapp-logo text-base"></i>
@@ -60,7 +60,7 @@
       <!-- SaaS Subscription Pill -->
       <button onclick="openPricingModal()" class="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-600 hover:to-orange-600 transition">
         <i class="ph-bold ph-crown text-sm"></i>
-        <span id="plan-badge">Plan Pro ($7.99/mes)</span>
+        <span id="plan-badge">Plan Pro ($149 MXN/mes)</span>
       </button>
 
       <!-- MXN Landing Link -->
@@ -182,10 +182,10 @@
 
           <!-- Movement Simulator -->
           <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-sm">
-            <label class="text-xs font-bold text-slate-700 block">Trayecto de Lucas (Hijo - 9 años):</label>
+            <label class="text-xs font-bold text-slate-700 block">Trayecto de Familiar:</label>
             <div class="grid grid-cols-1 gap-1.5 text-xs font-semibold">
               <button onclick="simulateMoveKid('school')" class="w-full py-2 px-3 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded-lg flex items-center justify-between transition">
-                <span>📍 Mover a Colegio San Martín</span>
+                <span>📍 Mover a Escuela / Trabajo</span>
                 <span class="text-[10px] text-slate-400">Entrada Zona</span>
               </button>
               <button onclick="simulateMoveKid('street')" class="w-full py-2 px-3 bg-slate-50 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 rounded-lg flex items-center justify-between transition">
@@ -202,8 +202,8 @@
           <!-- Battery Simulator -->
           <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-sm">
             <label class="text-xs font-bold text-slate-700 block">Simulador de Batería Crítica:</label>
-            <button onclick="simulateLowBattery('user-sofia-teen', 12)" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold flex items-center justify-between transition">
-              <span>🔋 Bajar Batería de Sofía al 12%</span>
+            <button onclick="simulateLowBattery(null, 12)" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold flex items-center justify-between transition">
+              <span>🔋 Bajar Batería al 12%</span>
               <span class="text-[10px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded font-bold">Disparar Alerta</span>
             </button>
           </div>
@@ -253,7 +253,7 @@
           </span>
           <span class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded" id="walk-timer-display">14:59</span>
         </div>
-        <div class="text-xs text-slate-700 font-semibold" id="walk-floating-member">Sofía $\to$ Casa Familiar</div>
+        <div class="text-xs text-slate-700 font-semibold" id="walk-floating-member">Familiar &rarr; Casa Familiar</div>
         <p class="text-[11px] text-slate-500">Si no se confirma la llegada antes de cero, se enviará alerta con la ruta.</p>
         <button onclick="completeCurrentWalk()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
           Confirmar Llegada a Salvo
