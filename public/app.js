@@ -523,6 +523,24 @@ function setupSocket() {
     renderAlerts();
     playChime(alert.type === 'sos' ? 'emergency' : 'normal');
 
+    // Trigger Native Device Notification with Vibration
+    let notifTitle = "🔔 Alerta FamSafe";
+    let notifType = 'normal';
+    if (alert.type === 'sos') {
+      notifTitle = "🚨 ¡EMERGENCIA SOS ACTIVADA!";
+      notifType = 'emergency';
+    } else if (alert.type === 'zone_exit') {
+      notifTitle = "⚠️ Salida de Zona Segura";
+    } else if (alert.type === 'zone_enter') {
+      notifTitle = "📍 Llegada a Zona Segura";
+    } else if (alert.type === 'battery_low') {
+      notifTitle = "🪫 Alerta de Batería Baja";
+    } else if (alert.type === 'walk_timeout') {
+      notifTitle = "⚠️ Trayecto Expirado";
+      notifType = 'emergency';
+    }
+    sendDeviceNotification(notifTitle, alert.message, notifType);
+
     // Show unread dot if on another tab
     const activeTab = document.getElementById('tab-alerts').classList.contains('hidden');
     if (activeTab) {
@@ -536,6 +554,7 @@ function setupSocket() {
     updateOrCreateMemberMarker(member);
     renderMembers();
     playChime('normal');
+    sendDeviceNotification("👤 Nuevo Integrante", `${member.name} se unió a tu familia.`, 'normal');
   });
 
   socket.on('sos:triggered', ({ sosSession, alert, member }) => {
@@ -547,6 +566,7 @@ function setupSocket() {
     checkActiveSos();
     playChime('emergency');
     focusMemberOnMap(member.id);
+    sendDeviceNotification("🚨 ¡ALERTA SOS FAMILIAR!", `${member.name} necesita auxilio inmediato. Toca para ver su posición GPS en vivo.`, 'emergency');
   });
 
   socket.on('sos:resolved', ({ sosId, member }) => {
@@ -558,6 +578,7 @@ function setupSocket() {
       renderMembers();
     }
     checkActiveSos();
+    sendDeviceNotification("✅ SOS Resuelto", `La alerta de pánico ha sido desactivada.`, 'normal');
   });
 
   socket.on('walk:started', ({ session, alert }) => {
@@ -574,6 +595,7 @@ function setupSocket() {
     state.activeWalks = state.activeWalks.filter(w => w.id !== session.id);
     checkActiveWalks();
     playChime('emergency');
+    sendDeviceNotification("⚠️ 'Acompáñame a Casa' Expiró", `No se confirmó la llegada a tiempo. Revisa la última ubicación en el mapa.`, 'emergency');
   });
 
   socket.on('zone:created', (zone) => {
@@ -1742,9 +1764,99 @@ function checkUrlPlanParam() {
   }
 }
 
+// Native Web & Device Push Notifications Engine
+let swRegistration = null;
+
+async function initNotificationSystem() {
+  if ('serviceWorker' in navigator) {
+    try {
+      swRegistration = await navigator.serviceWorker.register('/sw.js');
+      console.log("FamSafe Service Worker registrado con éxito.");
+    } catch (e) {
+      console.warn("Service worker registro advertencia:", e);
+    }
+  }
+  updateNotificationUiState();
+}
+
+function updateNotificationUiState() {
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  const banner = document.getElementById('notification-permission-banner');
+  if (banner) {
+    if (perm === 'default') {
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert("Este navegador no tiene soporte para notificaciones web.");
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    updateNotificationUiState();
+    if (perm === 'granted') {
+      sendDeviceNotification(
+        "🔔 FamSafe Notificaciones Activas",
+        "Recibirás alertas inmediatas de emergencias SOS y salidas de zonas seguras.",
+        "normal"
+      );
+    }
+  } catch (err) {
+    console.warn("Permiso de notificación:", err);
+  }
+}
+
+function sendDeviceNotification(title, body, type = 'normal', url = '/') {
+  // 1. Play synthesized sound effect
+  playChime(type === 'emergency' ? 'emergency' : 'normal');
+
+  // 2. Hardware vibration (Mobile browsers)
+  if ('vibrate' in navigator) {
+    try {
+      if (type === 'emergency') {
+        navigator.vibrate([300, 150, 300, 150, 500, 200, 500]);
+      } else {
+        navigator.vibrate([150, 80, 150]);
+      }
+    } catch (e) {}
+  }
+
+  // 3. Native system notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const icon = '/icon-192.png';
+    const tag = `famsafe-${type}-${Date.now()}`;
+    const options = {
+      body,
+      icon,
+      badge: icon,
+      vibrate: type === 'emergency' ? [300, 150, 300, 150, 500] : [150, 80, 150],
+      tag,
+      renotify: true,
+      requireInteraction: type === 'emergency',
+      data: { url }
+    };
+
+    if (swRegistration && 'showNotification' in swRegistration) {
+      swRegistration.showNotification(title, options).catch(() => {
+        try { new Notification(title, options); } catch (e) {}
+      });
+    } else {
+      try {
+        new Notification(title, options);
+      } catch (e) {}
+    }
+  }
+}
+
 // Bootstrapping
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
+  initNotificationSystem();
   fetchCircleData().then(() => {
     initLiveBatterySync();
     checkUrlPlanParam();

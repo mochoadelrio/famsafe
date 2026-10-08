@@ -1,12 +1,17 @@
 services:
   - type: web
-    name: famsafe-backend
-    runtime: docker
-    plan: free
-    region: oregon
-    dockerfilePath: ./Dockerfile
+    name: famsafe-app
+    env: node
+    plan: starter
+    region: ohio
+    buildCommand: npm install
+    startCommand: node src/server.js
     envVars:
-      - key: PORT
-        value: 3005
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3005
+    disk:
+      name: famsafe-data
+      mountPath: /app/data
+      sizeGB: 1

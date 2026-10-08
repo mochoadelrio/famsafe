@@ -1,35 +1,15 @@
+version: '3.8'
+
 services:
-  app:
+  famsafe:
     build: .
+    container_name: famsafe-production
+    restart: always
     ports:
+      - "80:3005"
       - "3005:3005"
     environment:
+      - NODE_ENV=production
       - PORT=3005
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://famsafe:famsafepass@postgres:5432/famsafe_db
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-
-  postgres:
-    image: postgis/postgis:16-3.4-alpine
-    environment:
-      - POSTGRES_USER=famsafe
-      - POSTGRES_PASSWORD=famsafepass
-      - POSTGRES_DB=famsafe_db
-    ports:
-      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
-
-volumes:
-  pgdata:
-  redisdata:
+      - ./data:/app/data
