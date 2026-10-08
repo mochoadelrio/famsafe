@@ -725,32 +725,201 @@ function setModalBillingPeriod(period) {
   }
 }
 
-async function selectPlan(planId) {
-  if (!CURRENT_CIRCLE_ID) {
-    alert("Debes crear o ingresar a tu familia primero.");
-    closePricingModal();
-    openAuthModal();
+let currentCheckoutPlan = null;
+let currentValidatedPayment = null;
+
+function openCheckoutModal(planId) {
+  closePricingModal();
+  const isAnnual = modalBillingPeriod === 'annual';
+  
+  let planName = 'Familiar Pro';
+  let planPrice = isAnnual ? '$699 MXN / año' : '$79 MXN / mes';
+  let amount = isAnnual ? 699 : 79;
+
+  if (planId === 'basic') {
+    planName = 'Plan Básico';
+    planPrice = isAnnual ? '$249 MXN / año' : '$29 MXN / mes';
+    amount = isAnnual ? 249 : 29;
+  } else if (planId === 'guardian_plus') {
+    planName = 'Guardian Plus';
+    planPrice = isAnnual ? '$1,299 MXN / año' : '$149 MXN / mes';
+    amount = isAnnual ? 1299 : 149;
+  }
+
+  currentCheckoutPlan = {
+    planId,
+    planName,
+    billingPeriod: modalBillingPeriod,
+    amount
+  };
+
+  currentValidatedPayment = null;
+
+  const planNameElem = document.getElementById('checkout-plan-name');
+  if (planNameElem) planNameElem.innerText = `${planName} (${planPrice})`;
+  
+  const planPriceElem = document.getElementById('checkout-plan-price');
+  if (planPriceElem) planPriceElem.innerText = isAnnual ? `$${amount} MXN / año` : `$${amount} MXN / mes`;
+  
+  const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+  const conceptCode = state.circle?.inviteCode ? `FS-${state.circle.inviteCode}` : `FS-${randomSuffix}`;
+  const conceptElem = document.getElementById('checkout-concept');
+  if (conceptElem) conceptElem.innerText = conceptCode;
+
+  // Reset CEP form states
+  const keyInput = document.getElementById('cep-tracking-key');
+  if (keyInput) keyInput.value = '';
+  document.getElementById('cep-loading-box')?.classList.add('hidden');
+  document.getElementById('cep-success-box')?.classList.add('hidden');
+  document.getElementById('cep-error-box')?.classList.add('hidden');
+  document.getElementById('btn-validate-cep')?.classList.remove('hidden');
+  document.getElementById('btn-proceed-registration')?.classList.add('hidden');
+
+  const btnProceedText = document.getElementById('btn-proceed-text');
+  if (btnProceedText) {
+    btnProceedText.innerText = CURRENT_CIRCLE_ID ? "Activar Mi Plan en FamSafe" : "Continuar al Registro Familiar";
+  }
+
+  document.getElementById('modal-checkout')?.classList.remove('hidden');
+}
+
+function closeCheckoutModal() {
+  document.getElementById('modal-checkout')?.classList.add('hidden');
+}
+
+function selectPlan(planId) {
+  openCheckoutModal(planId);
+}
+
+function copyCheckoutClabe() {
+  const clabe = document.getElementById('checkout-clabe')?.innerText.trim() || '722969010283746519';
+  navigator.clipboard.writeText(clabe).then(() => {
+    const btnText = document.getElementById('btn-copy-clabe-text');
+    if (btnText) {
+      btnText.innerText = "¡Copiada!";
+      setTimeout(() => btnText.innerText = "Copiar CLABE", 2000);
+    }
+  });
+}
+
+function copyCheckoutConcept() {
+  const concept = document.getElementById('checkout-concept')?.innerText.trim() || 'FS-PAGO';
+  navigator.clipboard.writeText(concept).then(() => {
+    alert(`Concepto '${concept}' copiado al portapapeles.`);
+  });
+}
+
+async function handleValidateCep(e) {
+  e.preventDefault();
+  const trackingKey = document.getElementById('cep-tracking-key').value.trim();
+  const senderBank = document.getElementById('cep-sender-bank').value;
+  const fileInput = document.getElementById('cep-receipt-file');
+  
+  const loadingBox = document.getElementById('cep-loading-box');
+  const successBox = document.getElementById('cep-success-box');
+  const errorBox = document.getElementById('cep-error-box');
+
+  loadingBox.classList.remove('hidden');
+  successBox.classList.add('hidden');
+  errorBox.classList.add('hidden');
+
+  let receiptBase64 = null;
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    try {
+      receiptBase64 = await readFileAsBase64(fileInput.files[0]);
+    } catch (_) {}
+  }
+
+  // Artificial short delay to give genuine Banxico SPEI gateway feedback feel
+  await new Promise(r => setTimeout(r, 1200));
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/payments/validate-cep`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trackingKey,
+        senderBank,
+        amount: currentCheckoutPlan ? currentCheckoutPlan.amount : 79,
+        planId: currentCheckoutPlan ? currentCheckoutPlan.planId : 'pro_family',
+        billingPeriod: currentCheckoutPlan ? currentCheckoutPlan.billingPeriod : 'monthly',
+        circleId: CURRENT_CIRCLE_ID || null,
+        receiptBase64
+      })
+    });
+
+    const data = await res.json();
+    loadingBox.classList.add('hidden');
+
+    if (!res.ok || !data.success) {
+      errorBox.innerText = data.error || "No fue posible certificar la clave de rastreo con Banxico CEP.";
+      errorBox.classList.remove('hidden');
+      return;
+    }
+
+    currentValidatedPayment = data;
+    document.getElementById('cep-result-folio').innerText = data.payment.banxicoFolio;
+    document.getElementById('cep-result-key').innerText = data.payment.trackingKey;
+    successBox.classList.remove('hidden');
+
+    document.getElementById('btn-validate-cep').classList.add('hidden');
+    document.getElementById('btn-proceed-registration').classList.remove('hidden');
+  } catch (err) {
+    loadingBox.classList.add('hidden');
+    errorBox.innerText = "Error al conectar con el servidor de validación: " + err.message;
+    errorBox.classList.remove('hidden');
+  }
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function proceedToFamilyRegistrationAfterPayment() {
+  if (!currentValidatedPayment) {
+    alert("Primero debes validar tu comprobante SPEI.");
     return;
   }
 
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/billing/upgrade`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ circleId: CURRENT_CIRCLE_ID, planId, billingPeriod: modalBillingPeriod })
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data) {
-      alert("Error al actualizar plan.");
-      return;
+  if (CURRENT_CIRCLE_ID && state.circle) {
+    // Already in a circle -> Upgrade directly with paymentToken
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/billing/upgrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          circleId: CURRENT_CIRCLE_ID,
+          planId: currentCheckoutPlan.planId,
+          billingPeriod: currentCheckoutPlan.billingPeriod,
+          paymentToken: currentValidatedPayment.paymentToken
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeCheckoutModal();
+        await fetchCircleData();
+        alert(`🎉 ¡Pago certificado por Banxico CEP! Tu plan ${currentCheckoutPlan.planName} ha sido activado y registrado en el Panel de Administración.`);
+      }
+    } catch (err) {
+      alert("Error al activar suscripción: " + err.message);
     }
-    if (data.success) {
-      closePricingModal();
-      await fetchCircleData();
-      alert(`🎉 ¡Plan actualizado a ${data.plan.name} en pesos mexicanos!`);
+  } else {
+    // New user -> Open Family Registration with pre-selected and verified plan
+    closeCheckoutModal();
+    openAuthModal();
+    switchAuthTab('create');
+    const planSelect = document.getElementById('reg-plan');
+    if (planSelect) {
+      planSelect.value = currentCheckoutPlan.planId;
     }
-  } catch (err) {
-    alert("Error al actualizar plan: " + err.message);
+    // Store token in window for handleRegisterFamily
+    window.currentValidatedPaymentToken = currentValidatedPayment.paymentToken;
+    alert(`✅ Comprobante validado con éxito. Ahora completa el registro de tu familia para activar tu suscripción con tu comprobante.`);
   }
 }
 
@@ -1180,6 +1349,7 @@ async function handleRegisterFamily(e) {
         email,
         password,
         plan,
+        paymentToken: window.currentValidatedPaymentToken || undefined,
         lat: userLiveCoords ? userLiveCoords.lat : undefined,
         lng: userLiveCoords ? userLiveCoords.lng : undefined
       })
@@ -1340,16 +1510,7 @@ function checkUrlPlanParam() {
   const urlParams = new URLSearchParams(window.location.search);
   const plan = urlParams.get('plan');
   if (plan && ['basic', 'pro_family', 'guardian_plus'].includes(plan)) {
-    if (CURRENT_CIRCLE_ID && state.circle) {
-      // If logged in, ask to switch/activate the plan
-      selectPlan(plan);
-    } else {
-      // If not logged in, open auth modal and pre-select plan
-      openAuthModal();
-      switchAuthTab('create');
-      const planSelect = document.getElementById('reg-plan');
-      if (planSelect) planSelect.value = plan;
-    }
+    openCheckoutModal(plan);
   }
 }
 

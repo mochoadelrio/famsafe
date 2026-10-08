@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FamSafe Admin - Control de Clientes y Suscripciones</title>
+  
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col antialiased">
+
+  <!-- LOGIN OVERLAY (REQUIRED FOR ADMIN ACCESS) -->
+  <div id="admin-login-overlay" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6 relative">
+      <div class="text-center space-y-2">
+        <div class="inline-flex p-3 rounded-2xl bg-blue-600/10 border border-blue-500/20 mb-1">
+          <img src="/logo.png" alt="FamSafe" class="w-12 h-12 rounded-xl object-cover">
+        </div>
+        <h2 class="text-xl font-black text-white">Panel de Administración</h2>
+        <p class="text-xs text-slate-400">Control de clientes, suscripciones y pagos SPEI Banxico</p>
+      </div>
+
+      <form id="admin-login-form" onsubmit="handleAdminLogin(event)" class="space-y-4 text-xs">
+        <div id="login-error" class="hidden p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl font-semibold"></div>
+
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Usuario:</label>
+          <div class="relative">
+            <i class="ph-bold ph-user absolute left-3 top-2.5 text-slate-500"></i>
+            <input type="text" id="admin-user-input" required placeholder="admin" value="admin" class="w-full pl-9 pr-3 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">PIN / Contraseña Maestra:</label>
+          <div class="relative">
+            <i class="ph-bold ph-lock-key absolute left-3 top-2.5 text-slate-500"></i>
+            <input type="password" id="admin-pin-input" required placeholder="••••••••" class="w-full pl-9 pr-3 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <button type="submit" id="btn-admin-submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2">
+          <i class="ph-bold ph-shield-check text-base"></i>
+          <span>Ingresar al Panel</span>
+        </button>
+      </form>
+      
+      <div class="pt-2 text-center">
+        <a href="/" class="text-[11px] text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1">
+          <i class="ph-bold ph-arrow-left"></i>
+          <span>Volver a FamSafe App</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN NAVIGATION BAR -->
+  <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <img src="/logo.png" alt="FamSafe" class="w-9 h-9 rounded-xl object-cover border border-slate-700 shadow-sm">
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-extrabold text-white tracking-tight">FamSafe CRM Admin</h1>
+          <span class="text-[10px] bg-blue-500/20 text-blue-400 font-bold px-2 py-0.5 rounded-full border border-blue-500/30">Superadmin</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Control de clientes y suscripciones en tiempo real</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 text-xs">
+      <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-slate-700 transition flex items-center gap-1.5">
+        <i class="ph-bold ph-globe"></i>
+        <span>Ver App Web</span>
+      </a>
+      <button onclick="handleAdminLogout()" class="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold border border-red-500/20 transition flex items-center gap-1.5">
+        <i class="ph-bold ph-sign-out"></i>
+        <span>Cerrar Sesión</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN ADMIN DASHBOARD -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- KPI STATS CARDS -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div>
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Familias</span>
+          <div class="text-2xl font-black text-white mt-0.5" id="metric-total-customers">0</div>
+          <span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
+            <i class="ph-bold ph-trend-up"></i> Círculos creados
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-2xl">
+          <i class="ph-bold ph-users-three"></i>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div>
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Suscripciones Activas</span>
+          <div class="text-2xl font-black text-emerald-400 mt-0.5" id="metric-active-subs">0</div>
+          <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+            Planes vigentes
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-2xl">
+          <i class="ph-bold ph-shield-check"></i>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div>
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Facturados</span>
+          <div class="text-2xl font-black text-white mt-0.5" id="metric-total-revenue">$0 MXN</div>
+          <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+            Cobrado en pesos mexicanos
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center text-2xl">
+          <i class="ph-bold ph-currency-circle-dollar"></i>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div>
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Comprobantes Banxico CEP</span>
+          <div class="text-2xl font-black text-cyan-400 mt-0.5" id="metric-total-cep">0</div>
+          <span class="text-[10px] text-cyan-400 font-semibold flex items-center gap-1 mt-0.5">
+            <i class="ph-bold ph-seal-check"></i> 100% Anti-duplicados
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center justify-center text-2xl">
+          <i class="ph-bold ph-bank"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER & SEARCH BAR -->
+    <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-sm">
+      <div class="relative flex-1">
+        <i class="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+        <input type="text" id="search-input" oninput="filterCustomers()" placeholder="Buscar por familia, tutor, correo o clave de rastreo SPEI..." class="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-blue-500">
+      </div>
+
+      <div class="flex items-center gap-2">
+        <select id="filter-plan" onchange="filterCustomers()" class="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 font-semibold outline-none focus:border-blue-500">
+          <option value="all">Todos los Planes</option>
+          <option value="basic">Plan Básico ($29 MXN)</option>
+          <option value="pro_family">Familiar Pro ($79 MXN)</option>
+          <option value="guardian_plus">Guardian Plus ($149 MXN)</option>
+        </select>
+
+        <button onclick="loadAdminCustomers()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+          <i class="ph-bold ph-arrows-clockwise text-sm"></i>
+          <span>Actualizar</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS & SUBSCRIPTIONS DATA TABLE -->
+    <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl overflow-hidden shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] font-bold border-b border-slate-700/80">
+            <tr>
+              <th class="py-3 px-4">Familia / Tutor</th>
+              <th class="py-3 px-4">Contacto</th>
+              <th class="py-3 px-4">Código</th>
+              <th class="py-3 px-4">Suscripción</th>
+              <th class="py-3 px-4">Vigencia (Inicio - Fin)</th>
+              <th class="py-3 px-4">Validación CEP Banxico</th>
+              <th class="py-3 px-4 text-center">Estatus</th>
+            </tr>
+          </thead>
+          <tbody id="customers-table-body" class="divide-y divide-slate-700/50">
+            <!-- Injected via JavaScript -->
+            <tr>
+              <td colspan="7" class="py-8 text-center text-slate-500">Cargando clientes registrados...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let allCustomers = [];
+    const ADMIN_STORAGE_KEY = 'famsafe_admin_token';
+
+    // Verify session on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+      if (token) {
+        document.getElementById('admin-login-overlay').classList.add('hidden');
+        loadAdminCustomers();
+      } else {
+        document.getElementById('admin-login-overlay').classList.remove('hidden');
+      }
+    });
+
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      const user = document.getElementById('admin-user-input').value.trim();
+      const pin = document.getElementById('admin-pin-input').value.trim();
+      const errorDiv = document.getElementById('login-error');
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user, pin })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          errorDiv.innerText = data.error || "Credenciales incorrectas.";
+          errorDiv.classList.remove('hidden');
+          return;
+        }
+
+        sessionStorage.setItem(ADMIN_STORAGE_KEY, data.token);
+        document.getElementById('admin-login-overlay').classList.add('hidden');
+        loadAdminCustomers();
+      } catch (err) {
+        errorDiv.innerText = "Error al conectar con el servidor: " + err.message;
+        errorDiv.classList.remove('hidden');
+      }
+    }
+
+    function handleAdminLogout() {
+      sessionStorage.removeItem(ADMIN_STORAGE_KEY);
+      window.location.reload();
+    }
+
+    async function loadAdminCustomers() {
+      const token = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+      if (!token) return;
+
+      try {
+        const res = await fetch('/api/admin/customers', {
+          headers: { 'Authorization': token }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          if (res.status === 401 || res.status === 403) {
+            sessionStorage.removeItem(ADMIN_STORAGE_KEY);
+            window.location.reload();
+          }
+          return;
+        }
+
+        // Metrics
+        document.getElementById('metric-total-customers').innerText = data.metrics.totalCustomers;
+        document.getElementById('metric-active-subs').innerText = data.metrics.activeSubscriptions;
+        document.getElementById('metric-total-revenue').innerText = `$${data.metrics.totalRevenueMxn.toLocaleString('es-MX')} MXN`;
+        document.getElementById('metric-total-cep').innerText = data.metrics.totalPaymentsValidated;
+
+        allCustomers = data.customers || [];
+        renderCustomersTable(allCustomers);
+      } catch (err) {
+        console.error("Error al cargar clientes:", err);
+      }
+    }
+
+    function filterCustomers() {
+      const q = document.getElementById('search-input').value.toLowerCase().trim();
+      const planFilter = document.getElementById('filter-plan').value;
+
+      const filtered = allCustomers.filter(c => {
+        const matchQuery = (
+          c.familyName.toLowerCase().includes(q) ||
+          c.parentName.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q) ||
+          c.inviteCode.toLowerCase().includes(q) ||
+          (c.trackingKey && c.trackingKey.toLowerCase().includes(q))
+        );
+        const matchPlan = planFilter === 'all' || c.plan === planFilter;
+        return matchQuery && matchPlan;
+      });
+
+      renderCustomersTable(filtered);
+    }
+
+    function renderCustomersTable(list) {
+      const tbody = document.getElementById('customers-table-body');
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="py-8 text-center text-slate-500 font-medium">
+              No se encontraron registros de clientes con los filtros seleccionados.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      list.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-750/30 transition";
+
+        const start = new Date(c.startDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+        const end = new Date(c.renewsAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+        
+        let planBadge = '';
+        if (c.plan === 'basic') {
+          planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-200 border border-slate-600">Básico ($29 MXN)</span>`;
+        } else if (c.plan === 'guardian_plus') {
+          planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">Guardian Plus ($149 MXN)</span>`;
+        } else {
+          planBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">Familiar Pro ($79 MXN)</span>`;
+        }
+
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <div class="font-bold text-white">${c.familyName}</div>
+            <div class="text-[11px] text-slate-400">Tutor: ${c.parentName} (${c.membersCount} integrantes)</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="font-mono text-slate-200">${c.email}</div>
+            <div class="text-[11px] text-slate-500">${c.phone || 'Sin teléfono'}</div>
+          </td>
+          <td class="py-3 px-4">
+            <span class="font-mono font-bold bg-slate-900 border border-slate-700 px-2 py-1 rounded text-blue-400 text-xs">${c.inviteCode}</span>
+          </td>
+          <td class="py-3 px-4">
+            <div>${planBadge}</div>
+            <div class="text-[10px] text-slate-400 mt-1 font-semibold">$${c.amountPaidMxn} MXN / ${c.billingPeriod === 'annual' ? 'año' : 'mes'}</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="text-slate-300"><strong class="text-white">Inicio:</strong> ${start}</div>
+            <div class="text-slate-400 text-[11px]"><strong class="text-emerald-400">Fin / Renueva:</strong> ${end}</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px]">
+              <i class="ph-bold ph-seal-check"></i>
+              <span>${c.banxicoFolio}</span>
+            </div>
+            <div class="font-mono text-[10px] text-slate-400 truncate max-w-[140px]" title="Clave de Rastreo: ${c.trackingKey}">
+              Rastreo: ${c.trackingKey}
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Activo
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>

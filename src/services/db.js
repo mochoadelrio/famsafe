@@ -20,7 +20,8 @@ const initialData = {
   alerts: [],
   users: [],
   activeWalkSessions: [],
-  activeSosSessions: []
+  activeSosSessions: [],
+  validatedPayments: []
 };
 
 class Database {
@@ -33,6 +34,7 @@ class Database {
       try {
         const raw = fs.readFileSync(DATA_FILE, 'utf-8');
         this.data = JSON.parse(raw);
+        if (!this.data.validatedPayments) this.data.validatedPayments = [];
         return;
       } catch (err) {
         console.error("Error reading database file, restoring defaults:", err);
@@ -209,7 +211,7 @@ class Database {
     return `${prefix.substring(0, 3).toUpperCase()}${num}`;
   }
 
-  createFamilyAccount({ familyName, parentName, email, phone, password, plan = "pro_family", lat, lng, address }) {
+  createFamilyAccount({ familyName, parentName, email, phone, password, plan = "pro_family", lat, lng, address, paymentMeta = null }) {
     if (!this.data.users) this.data.users = [];
 
     const existingUser = this.findUserByEmail(email);
@@ -234,8 +236,9 @@ class Database {
       plan: plan || "pro_family",
       subscription: {
         status: "active",
-        planName: plan === "basic" ? "Plan Básico ($49 MXN/mes)" : "Plan Familiar Pro ($149 MXN/mes)",
-        renewsAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
+        planName: plan === "basic" ? "Plan Básico ($29 MXN/mes)" : plan === "guardian_plus" ? "Guardian Plus ($149 MXN/mes)" : "Familiar Pro ($79 MXN/mes)",
+        renewsAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        paymentMeta: paymentMeta || null
       },
       createdAt: new Date().toISOString()
     };
@@ -365,6 +368,36 @@ class Database {
     const circle = this.getCircleById(user.circleId);
     const member = this.getMemberById(user.memberId);
     return { user, circle, member };
+  }
+
+  updateCirclePlan(circleId, planId, planName, paymentMeta = null) {
+    const circle = this.getCircleById(circleId);
+    if (!circle) throw new Error("Círculo no encontrado.");
+    circle.plan = planId;
+    circle.subscription = {
+      status: "active",
+      planName: planName || (planId === "basic" ? "Plan Básico ($29 MXN/mes)" : planId === "guardian_plus" ? "Guardian Plus ($149 MXN/mes)" : "Familiar Pro ($79 MXN/mes)"),
+      renewsAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+      paymentMeta: paymentMeta || circle.subscription?.paymentMeta || null
+    };
+    this.save();
+    return circle;
+  }
+
+  findPaymentByTrackingKey(trackingKey) {
+    if (!this.data.validatedPayments) this.data.validatedPayments = [];
+    const clean = (trackingKey || "").trim().toUpperCase();
+    return this.data.validatedPayments.find(p => (p.trackingKey || "").toUpperCase() === clean);
+  }
+
+  recordValidatedPayment(paymentRecord) {
+    if (!this.data.validatedPayments) this.data.validatedPayments = [];
+    this.data.validatedPayments.push({
+      id: `pay-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString(),
+      ...paymentRecord
+    });
+    this.save();
   }
 }
 

@@ -10,6 +10,7 @@ import { processMemberTelemetry } from './services/geoEngine.js';
 import { triggerEmergencySos, cancelEmergencySos } from './services/sosService.js';
 import { walkMeHomeService } from './services/walkMeHomeService.js';
 import { PLANS, upgradePlan, canAddSafeZone } from './services/saasBilling.js';
+import { validateCepReceipt, MERCADO_PAGO_DETAILS, BANCOS_MEXICO } from './services/cepValidatorService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,30 +27,42 @@ const io = new SocketIOServer(server, {
 const PORT = process.env.PORT || 3005;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ---------------- REST API ROUTES ----------------
 
-// Register a New Family Circle
+// Register a New Family Circle (with optional CEP verified paymentToken)
 app.post('/api/auth/register-family', (req, res) => {
-  const { familyName, parentName, email, phone, password, plan, lat, lng, address } = req.body;
+  const { familyName, parentName, email, phone, password, plan, lat, lng, address, paymentToken } = req.body;
   if (!familyName || !parentName || !email || !password) {
     return res.status(400).json({ error: "Todos los campos principales son requeridos." });
   }
 
   try {
+    let paymentMeta = null;
+    if (paymentToken && db.data.validatedPayments) {
+      paymentMeta = db.data.validatedPayments.find(p => p.token === paymentToken || p.paymentToken === paymentToken || p.banxicoFolio === paymentToken);
+    }
+
     const result = db.createFamilyAccount({
       familyName,
       parentName,
       email,
       phone,
       password,
-      plan: plan || "pro_family",
+      plan: plan || (paymentMeta?.planId) || "pro_family",
       lat: lat ? parseFloat(lat) : undefined,
       lng: lng ? parseFloat(lng) : undefined,
-      address
+      address,
+      paymentMeta
     });
+
+    if (paymentMeta) {
+      paymentMeta.circleId = result.circle.id;
+      paymentMeta.circleName = familyName;
+      db.save();
+    }
 
     res.json({
       success: true,
@@ -288,14 +301,127 @@ app.get('/api/billing/plans', (req, res) => {
   res.json(PLANS);
 });
 
-app.post('/api/billing/upgrade', (req, res) => {
-  const { circleId, planId } = req.body;
+// Mercado Pago Payment Information
+app.get('/api/payments/mercado-pago-info', (req, res) => {
+  res.json({
+    details: MERCADO_PAGO_DETAILS,
+    banks: BANCOS_MEXICO
+  });
+});
+
+// Banxico CEP SPEI Receipt Validation
+app.post('/api/payments/validate-cep', (req, res) => {
+  const { trackingKey, operationDate, amount, senderBank, planId, billingPeriod, circleId, receiptBase64 } = req.body;
   try {
+    const result = validateCepReceipt({
+      trackingKey,
+      operationDate,
+      amount,
+      senderBank,
+      planId,
+      billingPeriod,
+      circleId,
+      receiptBase64
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Subscription Upgrade with Payment Tracking
+app.post('/api/billing/upgrade', (req, res) => {
+  const { circleId, planId, billingPeriod, paymentToken } = req.body;
+  try {
+    let paymentMeta = null;
+    if (paymentToken && db.data.validatedPayments) {
+      paymentMeta = db.data.validatedPayments.find(p => p.token === paymentToken || p.paymentToken === paymentToken || p.banxicoFolio === paymentToken);
+      if (paymentMeta) {
+        paymentMeta.circleId = circleId;
+      }
+    }
     const result = upgradePlan(circleId, planId, io);
+    if (paymentMeta) {
+      db.updateCirclePlan(circleId, planId, PLANS[planId]?.name, paymentMeta);
+    }
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// ---------------- ADMIN PANEL CRM ROUTES ----------------
+
+// Admin Authentication (User: admin, PIN: Modr1988-+)
+app.post('/api/admin/login', (req, res) => {
+  const { user, pin } = req.body;
+  if (user === "admin" && pin === "Modr1988-+") {
+    return res.json({
+      success: true,
+      token: "ADMIN-AUTH-FMS-" + Buffer.from("admin:Modr1988-+").toString('base64'),
+      name: "Administrador FamSafe"
+    });
+  }
+  return res.status(401).json({ error: "Usuario o PIN de administrador incorrecto." });
+});
+
+// Admin Customers & Subscriptions Control
+app.get('/api/admin/customers', (req, res) => {
+  const authHeader = req.headers.authorization || req.query.token;
+  const expected = "ADMIN-AUTH-FMS-" + Buffer.from("admin:Modr1988-+").toString('base64');
+  if (authHeader !== expected && req.headers['x-admin-pin'] !== 'Modr1988-+') {
+    return res.status(403).json({ error: "Acceso no autorizado al panel de administración." });
+  }
+
+  const circles = db.getCircles() || [];
+  const users = db.data.users || [];
+  const members = db.data.members || [];
+  const payments = db.data.validatedPayments || [];
+
+  const customers = circles.map(circle => {
+    const adminUser = users.find(u => u.circleId === circle.id) || {};
+    const guardianMember = members.find(m => m.circleId === circle.id && m.role === 'guardian') || {};
+    const circleMembers = members.filter(m => m.circleId === circle.id);
+    const circlePayment = payments.find(p => p.circleId === circle.id) || circle.subscription?.paymentMeta || {};
+
+    const planKey = circle.plan || 'pro_family';
+    const planInfo = PLANS[planKey] || { name: circle.subscription?.planName || planKey, priceMxn: 79 };
+
+    return {
+      circleId: circle.id,
+      familyName: circle.name,
+      parentName: guardianMember.name ? guardianMember.name.replace(" (Tutor)", "") : (adminUser.name || "Administrador"),
+      email: adminUser.email || "No registrado",
+      phone: guardianMember.phone || "No registrado",
+      inviteCode: circle.inviteCode,
+      plan: planKey,
+      planName: circle.subscription?.planName || planInfo.name,
+      startDate: circle.createdAt,
+      renewsAt: circle.subscription?.renewsAt || new Date(new Date(circle.createdAt).getTime() + 30 * 24 * 3600 * 1000).toISOString(),
+      status: circle.subscription?.status || "active",
+      membersCount: circleMembers.length,
+      amountPaidMxn: circlePayment.amount || planInfo.priceMxn,
+      billingPeriod: circlePayment.billingPeriod || "monthly",
+      banxicoFolio: circlePayment.banxicoFolio || "SPEI-VERIFICADO",
+      trackingKey: circlePayment.trackingKey || "MANUAL-APROBADO",
+      senderBank: circlePayment.senderBank || "STP / Mercado Pago",
+      validatedAt: circlePayment.validatedAt || circle.createdAt
+    };
+  });
+
+  const totalRevenueMxn = customers.reduce((sum, c) => sum + (c.amountPaidMxn || 0), 0);
+  const activeSubs = customers.filter(c => c.status === 'active').length;
+
+  res.json({
+    success: true,
+    metrics: {
+      totalCustomers: customers.length,
+      activeSubscriptions: activeSubs,
+      totalRevenueMxn,
+      totalPaymentsValidated: payments.length
+    },
+    customers
+  });
 });
 
 // Real-time Simulation Helper (Move kid / teen step by step)

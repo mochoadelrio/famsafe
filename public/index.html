@@ -456,6 +456,159 @@
     </div>
   </div>
 
+  <!-- MODAL: MERCADO PAGO TRANSFER & BANXICO CEP VALIDATION -->
+  <div id="modal-checkout" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-8 relative">
+      <button onclick="closeCheckoutModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-lg font-bold">
+        <i class="ph-bold ph-x"></i>
+      </button>
+
+      <!-- Header -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center text-2xl font-bold shrink-0">
+          <i class="ph-bold ph-credit-card"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-black text-slate-900">Pago por Transferencia SPEI</h2>
+          <p class="text-xs text-slate-500 font-medium">Validación oficial en tiempo real con Banxico CEP</p>
+        </div>
+      </div>
+
+      <!-- Plan Summary Pill -->
+      <div class="bg-blue-50 border border-blue-200/80 rounded-2xl p-3.5 flex items-center justify-between">
+        <div>
+          <span class="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">Plan Seleccionado</span>
+          <h3 class="font-extrabold text-sm text-slate-900" id="checkout-plan-name">Familiar Pro ($79 MXN/mes)</h3>
+        </div>
+        <div class="text-right">
+          <span class="text-[10px] text-slate-500 font-bold block">Total a Transferir</span>
+          <span class="text-xl font-black text-blue-600" id="checkout-plan-price">$79 MXN</span>
+        </div>
+      </div>
+
+      <!-- STEP 1: Datos Bancarios de Mercado Pago -->
+      <div class="space-y-2.5 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-slate-900 flex items-center gap-1.5">
+            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
+            Datos para Transferencia (Mercado Pago)
+          </span>
+          <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">SPEI Sin Comisiones</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <div class="p-2.5 bg-white rounded-xl border border-slate-200">
+            <span class="text-[10px] text-slate-400 font-bold block">Banco Destino:</span>
+            <strong class="text-slate-800 text-xs">Mercado Pago Wallet (STP)</strong>
+          </div>
+          <div class="p-2.5 bg-white rounded-xl border border-slate-200">
+            <span class="text-[10px] text-slate-400 font-bold block">Beneficiario / Titular:</span>
+            <strong class="text-slate-800 text-xs">Manuel Ochoa del Río</strong>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-white rounded-xl border border-blue-200 flex items-center justify-between gap-2">
+          <div>
+            <span class="text-[10px] text-blue-600 font-extrabold block">CLABE Interbancaria (18 dígitos):</span>
+            <strong class="text-slate-900 font-mono text-sm tracking-wider" id="checkout-clabe">722969010283746519</strong>
+          </div>
+          <button type="button" onclick="copyCheckoutClabe()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] transition flex items-center gap-1 shrink-0">
+            <i class="ph-bold ph-copy"></i>
+            <span id="btn-copy-clabe-text">Copiar CLABE</span>
+          </button>
+        </div>
+
+        <div class="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-2">
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block">Concepto / Referencia SPEI:</span>
+            <strong class="text-slate-800 font-mono text-xs" id="checkout-concept">FS-84920</strong>
+          </div>
+          <button type="button" onclick="copyCheckoutConcept()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-[10px] transition flex items-center gap-1 shrink-0">
+            <i class="ph-bold ph-copy"></i>
+            <span>Copiar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Subir Comprobante y Validar Banxico CEP -->
+      <form id="form-validate-cep" onsubmit="handleValidateCep(event)" class="space-y-3 text-xs">
+        <span class="font-extrabold text-slate-900 flex items-center gap-1.5 block">
+          <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">2</span>
+          Subir Comprobante y Validar en Banxico CEP
+        </span>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Clave de Rastreo SPEI / Folio:</label>
+            <input type="text" id="cep-tracking-key" required placeholder="Ej. STP202610080234 o MBAN01928" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono uppercase outline-none focus:ring-2 focus:ring-blue-500">
+            <p class="text-[10px] text-slate-400 mt-0.5">Viene en tu comprobante bancario (7 a 30 caracteres).</p>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Banco Emisor (Desde donde transferiste):</label>
+            <select id="cep-sender-bank" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="BBVA México">BBVA México</option>
+              <option value="Santander México">Santander México</option>
+              <option value="Banorte">Banorte</option>
+              <option value="Nu México">Nu México</option>
+              <option value="Citibanamex">Citibanamex</option>
+              <option value="STP">STP</option>
+              <option value="Mercado Pago">Mercado Pago</option>
+              <option value="Hey Banco / Banregio">Hey Banco / Banregio</option>
+              <option value="Banco Azteca">Banco Azteca</option>
+              <option value="HSBC México">HSBC México</option>
+              <option value="Otro Banco SPEI">Otro Banco SPEI</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Archivo de Comprobante (Imagen o PDF):</label>
+          <input type="file" id="cep-receipt-file" accept="image/*,application/pdf" class="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-300 rounded-xl p-1">
+        </div>
+
+        <!-- Verification progress box (Hidden initially) -->
+        <div id="cep-loading-box" class="hidden p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center space-y-2">
+          <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white animate-spin">
+            <i class="ph-bold ph-spinner-gap text-lg"></i>
+          </div>
+          <h4 class="font-bold text-blue-900 text-xs">Conectando con el servicio SPEI / CEP de Banco de México...</h4>
+          <p class="text-[11px] text-blue-700">Verificando firma digital y comprobando que la clave no esté duplicada.</p>
+        </div>
+
+        <!-- Success Banner with Banxico CEP seal (Hidden initially) -->
+        <div id="cep-success-box" class="hidden p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
+          <div class="flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
+            <i class="ph-fill ph-seal-check text-emerald-600 text-lg"></i>
+            <span>¡Comprobante SPEI Validado por Banxico CEP!</span>
+          </div>
+          <div class="bg-white p-2.5 rounded-xl border border-emerald-200 text-[11px] text-slate-600 space-y-1 font-mono">
+            <div><strong>Folio CEP:</strong> <span id="cep-result-folio">CEP-XXXX</span></div>
+            <div><strong>Clave Rastreo:</strong> <span id="cep-result-key">STP-XXXX</span></div>
+            <div><strong>Estatus Banxico:</strong> <span class="text-emerald-600 font-bold">CERTIFICADO Y APROBADO</span></div>
+          </div>
+          <p class="text-[11px] text-emerald-700 font-medium">Esta clave de rastreo quedó registrada de forma única para tu familia. No podrá ser usada por ninguna otra cuenta.</p>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="cep-error-box" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 font-semibold text-xs"></div>
+
+        <!-- Action Buttons -->
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeCheckoutModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl font-bold text-slate-600 transition">Cancelar</button>
+          <button type="submit" id="btn-validate-cep" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-md shadow-blue-200 transition flex items-center gap-1.5">
+            <i class="ph-bold ph-seal-check text-sm"></i>
+            <span>Validar Comprobante en Banxico CEP</span>
+          </button>
+          <button type="button" id="btn-proceed-registration" onclick="proceedToFamilyRegistrationAfterPayment()" class="hidden px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-md shadow-emerald-200 transition flex items-center gap-1.5">
+            <span id="btn-proceed-text">Continuar al Registro Familiar</span>
+            <i class="ph-bold ph-arrow-right text-sm"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 
   <!-- MODAL: WALK WITH ME (ACOMPÁÑAME A CASA) -->
   <div id="modal-walk" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
