@@ -28,9 +28,11 @@ const PORT = process.env.PORT || 3005;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
 // Clean page routes
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/landing.html')));
+app.get('/panel', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 app.get('/app', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../public/admin.html')));
 app.get('/landing', (req, res) => res.sendFile(path.join(__dirname, '../public/landing.html')));

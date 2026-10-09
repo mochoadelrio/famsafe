@@ -10,6 +10,14 @@
       "destination": "http://34.228.140.167:3005/socket.io/$1"
     },
     {
+      "source": "/",
+      "destination": "/landing.html"
+    },
+    {
+      "source": "/panel",
+      "destination": "/index.html"
+    },
+    {
       "source": "/app",
       "destination": "/index.html"
     },

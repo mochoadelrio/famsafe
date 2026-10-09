@@ -40,7 +40,7 @@
       </a>
 
       <div class="flex items-center gap-2 sm:gap-3">
-        <a href="/" class="text-xs font-bold text-slate-700 hover:text-blue-600 px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 transition flex items-center gap-1.5 bg-white shadow-sm">
+        <a href="/panel?action=login" id="nav-login-btn" class="text-xs font-bold text-slate-700 hover:text-blue-600 px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 transition flex items-center gap-1.5 bg-white shadow-sm">
           <i class="ph-bold ph-sign-in text-sm text-blue-600"></i>
           <span>Iniciar Sesión</span>
         </a>
@@ -117,7 +117,7 @@
           </ul>
         </div>
 
-        <a href="/?plan=basic" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-800 hover:bg-slate-50 text-center transition block">
+        <a href="/panel?plan=basic" class="mt-6 w-full py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-800 hover:bg-slate-50 text-center transition block">
           Elegir Plan Básico ($29 MXN)
         </a>
       </div>
@@ -152,7 +152,7 @@
           </ul>
         </div>
 
-        <a href="/?plan=pro_family" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs text-center shadow-md shadow-blue-200 transition block">
+        <a href="/panel?plan=pro_family" class="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs text-center shadow-md shadow-blue-200 transition block">
           Activar Familiar Pro ($79 MXN)
         </a>
       </div>
@@ -184,7 +184,7 @@
           </ul>
         </div>
 
-        <a href="/?plan=guardian_plus" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 font-bold text-xs text-white text-center shadow-md shadow-purple-200 transition block">
+        <a href="/panel?plan=guardian_plus" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 font-bold text-xs text-white text-center shadow-md shadow-purple-200 transition block">
           Elegir Guardian Plus ($149 MXN)
         </a>
       </div>
@@ -241,7 +241,7 @@
         <span class="font-bold text-white">FamSafe México &bull; 2026</span>
       </div>
       <div class="flex gap-4 text-[11px] items-center">
-        <a href="/" class="hover:text-white">Abrir App Web</a>
+        <a href="/panel" class="hover:text-white">Abrir Mi Panel</a>
         <a href="/admin.html" class="hover:text-blue-400 font-semibold flex items-center gap-1 text-slate-300">
           <i class="ph-bold ph-shield-check text-xs text-blue-400"></i>
           <span>Acceso Admin</span>
@@ -252,8 +252,21 @@
     </div>
   </footer>
 
-  <!-- SCRIPT FOR DYNAMIC BILLING TOGGLE IN PESOS MEXICANOS (MXN) -->
+  <!-- SCRIPT FOR DYNAMIC BILLING TOGGLE & SESSION AUTO-DETECTION -->
   <script>
+    // Detect active session to show "Ir a mi Panel"
+    window.addEventListener('DOMContentLoaded', () => {
+      const circleId = localStorage.getItem('famsafe_circle_id');
+      if (circleId) {
+        const loginBtn = document.getElementById('nav-login-btn');
+        if (loginBtn) {
+          loginBtn.href = '/panel';
+          loginBtn.className = 'text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md shadow-blue-200';
+          loginBtn.innerHTML = '<i class="ph-bold ph-map-pin text-sm"></i><span>Ir a Mi Panel ➔</span>';
+        }
+      }
+    });
+
     function setBilling(mode) {
       const btnMonthly = document.getElementById('toggle-monthly');
       const btnAnnual = document.getElementById('toggle-annual');

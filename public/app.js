@@ -643,10 +643,95 @@ function focusMemberOnMap(memberId) {
   const member = state.members.find(m => m.id === memberId);
   if (member && member.lastLocation) {
     map.flyTo([member.lastLocation.lat, member.lastLocation.lng], 16, { duration: 1.2 });
+    showFloatingMemberCard(member);
     if (window.innerWidth < 768) {
       toggleMobileSheet(false);
     }
   }
+}
+
+function showFloatingMemberCard(member) {
+  const card = document.getElementById('floating-member-card');
+  if (!card || !member) return;
+
+  const avatar = document.getElementById('card-member-avatar');
+  if (avatar) avatar.src = member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+
+  const name = document.getElementById('card-member-name');
+  if (name) name.innerText = member.name;
+
+  const role = document.getElementById('card-member-role');
+  if (role) {
+    if (member.role === 'child') {
+      role.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-700 shrink-0';
+      role.innerText = 'Hijo (9a)';
+    } else if (member.role === 'teen') {
+      role.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700 shrink-0';
+      role.innerText = 'Adolescente (15a)';
+    } else {
+      role.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 shrink-0';
+      role.innerText = 'Tutor';
+    }
+  }
+
+  const address = document.getElementById('card-member-address');
+  if (address) address.innerText = member.lastLocation?.address || 'Ubicación en tiempo real';
+
+  const battery = document.getElementById('card-member-battery');
+  if (battery) {
+    const isLow = (member.battery || 100) <= 20;
+    battery.innerHTML = `
+      <i class="ph-bold ${isLow ? 'ph-battery-warning text-red-500' : member.isCharging ? 'ph-battery-charging text-emerald-500' : 'ph-battery-high text-emerald-500'} text-sm"></i>
+      <span>${member.battery || 100}%</span>
+    `;
+  }
+
+  const speed = document.getElementById('card-member-speed');
+  if (speed) {
+    const spd = member.lastLocation?.speedKmh || 0;
+    speed.innerHTML = `
+      <i class="ph-bold ${spd > 5 ? 'ph-car text-indigo-500' : spd > 1 ? 'ph-person-simple-walk text-blue-500' : 'ph-map-pin text-slate-400'} text-sm"></i>
+      <span>${spd > 0 ? `${spd.toFixed(1)} km/h` : 'En reposo'}</span>
+    `;
+  }
+
+  const sosDot = document.getElementById('card-member-sos-dot');
+  if (sosDot) {
+    if (member.status === 'sos') sosDot.classList.remove('hidden');
+    else sosDot.classList.add('hidden');
+  }
+
+  const historyBtn = document.getElementById('card-member-history-btn');
+  if (historyBtn) {
+    historyBtn.onclick = () => openMemberHistoryModal(member.id);
+  }
+
+  const navBtn = document.getElementById('card-member-navigate-btn');
+  if (navBtn && member.lastLocation) {
+    navBtn.onclick = () => {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${member.lastLocation.lat},${member.lastLocation.lng}`;
+      window.open(url, '_blank');
+    };
+  }
+
+  card.classList.remove('hidden');
+}
+
+function closeFloatingMemberCard() {
+  const card = document.getElementById('floating-member-card');
+  if (card) card.classList.add('hidden');
+}
+
+function logoutUser() {
+  const confirmLogout = confirm("¿Deseas cerrar tu sesión en FamSafe?\n\nTus datos y familiares seguirán seguros en la nube.");
+  if (!confirmLogout) return;
+
+  localStorage.removeItem('famsafe_circle_id');
+  localStorage.removeItem('famsafe_current_member_id');
+  localStorage.removeItem('famsafe_user');
+  CURRENT_CIRCLE_ID = null;
+
+  window.location.href = '/';
 }
 
 function centerMapOnCircle() {
@@ -1927,8 +2012,17 @@ function initLiveBatterySync() {
 function checkUrlPlanParam() {
   const urlParams = new URLSearchParams(window.location.search);
   const plan = urlParams.get('plan');
+  const action = urlParams.get('action');
+
   if (plan && ['basic', 'pro_family', 'guardian_plus'].includes(plan)) {
     openCheckoutModal(plan);
+  } else if (action === 'login') {
+    openAuthModal('login');
+  } else if (!CURRENT_CIRCLE_ID && !state.circle) {
+    // Si entra a /panel sin sesión activa y sin plan, solicitar inicio de sesión
+    setTimeout(() => {
+      openAuthModal('login');
+    }, 400);
   }
 }
 
