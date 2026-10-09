@@ -107,7 +107,7 @@ app.post('/api/auth/login', (req, res) => {
 
 // Join Family by 6-digit Invite Code
 app.post('/api/circles/join', (req, res) => {
-  const { inviteCode, memberName, role, phone, lat, lng, address } = req.body;
+  const { inviteCode, memberName, role, phone, lat, lng, address, email, password } = req.body;
   if (!inviteCode || !memberName) {
     return res.status(400).json({ error: "Código de invitación y nombre requeridos." });
   }
@@ -120,7 +120,9 @@ app.post('/api/circles/join', (req, res) => {
       phone: phone || "",
       lat: lat ? parseFloat(lat) : undefined,
       lng: lng ? parseFloat(lng) : undefined,
-      address
+      address,
+      email,
+      password
     });
 
     // Notify circle via WebSocket
@@ -133,11 +135,47 @@ app.post('/api/circles/join', (req, res) => {
     res.json({
       success: true,
       circle: result.circle,
-      member: result.member
+      member: result.member,
+      user: result.user || null
     });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
+});
+
+// Configure or update email and password credentials for an existing member
+app.post('/api/members/:id/credentials', (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const result = db.setMemberCredentials(req.params.id, email, password);
+    res.json({ success: true, user: { id: result.user.id, email: result.user.email, name: result.user.name } });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Quick Login by 6-digit Invite Code (Alternative to email/password for kids and family)
+app.post('/api/auth/login-with-code', (req, res) => {
+  const { inviteCode, memberName } = req.body;
+  if (!inviteCode) return res.status(400).json({ error: "Código de invitación requerido." });
+
+  const circle = db.findCircleByInviteCode(inviteCode);
+  if (!circle) return res.status(404).json({ error: "Código de invitación no válido." });
+
+  const members = db.getMembersByCircle(circle.id);
+  let member = null;
+  if (memberName) {
+    member = members.find(m => m.name.toLowerCase().includes(memberName.toLowerCase().trim()));
+  }
+  if (!member && members.length > 0) {
+    member = members[0];
+  }
+
+  res.json({
+    success: true,
+    circle,
+    member: member || null
+  });
 });
 
 // Validate Invite Code preview
@@ -291,10 +329,35 @@ app.post('/api/sos/trigger', (req, res) => {
 });
 
 app.post('/api/sos/resolve', (req, res) => {
-  const { sosId } = req.body;
-  const result = cancelEmergencySos(sosId, io);
-  if (!result) return res.status(404).json({ error: "SOS no encontrado o ya resuelto" });
-  res.json({ success: true, result });
+  const { sosId, circleId } = req.body;
+  let result = null;
+  if (sosId) {
+    result = cancelEmergencySos(sosId, io);
+  }
+  if (!result && circleId) {
+    const active = db.getActiveSos(circleId);
+    active.forEach(s => cancelEmergencySos(s.id, io));
+    result = { resolvedCount: active.length };
+  }
+  if (!result && !sosId && !circleId) {
+    const allActive = (db.data.activeSosSessions || []).filter(s => s.status === 'active');
+    allActive.forEach(s => cancelEmergencySos(s.id, io));
+    result = { resolvedCount: allActive.length };
+  }
+
+  // Ensure all members with status 'sos' return to 'stationary'
+  if (circleId) {
+    const members = db.getMembersByCircle(circleId);
+    members.forEach(m => {
+      if (m.status === 'sos') {
+        m.status = 'stationary';
+        db.save();
+        if (io) io.to(m.circleId).emit('member:location_update', { member: m, alerts: [] });
+      }
+    });
+  }
+
+  res.json({ success: true, result: result || { message: "Alerta SOS apagada con éxito" } });
 });
 
 // Walk With Me ("Acompáñame a Casa")

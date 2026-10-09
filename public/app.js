@@ -22,13 +22,30 @@ let state = {
 };
 
 // Web Audio API Synthesizer (Zero-dependency sound effects)
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = null;
+try {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+} catch (e) {
+  console.warn("AudioContext not supported:", e);
+}
+
+// User-gesture unlock for iOS Safari and mobile Chrome
+function unlockAudioContext() {
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(e => console.warn("Audio resume error:", e));
+  }
+}
+['click', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, unlockAudioContext, { passive: true });
+});
+
+let sirenInterval = null;
+let isSirenMuted = false;
 
 function playChime(type = 'normal') {
   try {
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
+    unlockAudioContext();
+    if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
@@ -38,22 +55,91 @@ function playChime(type = 'normal') {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
       osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
       osc.start();
       osc.stop(audioCtx.currentTime + 0.35);
     } else if (type === 'emergency') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(900, audioCtx.currentTime);
-      osc.frequency.linearRampToValueAtTime(450, audioCtx.currentTime + 0.3);
-      osc.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 0.6);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.65);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.65);
+      playSirenTone();
     }
   } catch (e) {
     console.warn("Audio play prevented:", e);
+  }
+}
+
+function playSirenTone() {
+  if (isSirenMuted || !audioCtx) return;
+  try {
+    unlockAudioContext();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(850, now);
+    osc.frequency.linearRampToValueAtTime(1250, now + 0.35);
+    osc.frequency.linearRampToValueAtTime(750, now + 0.7);
+
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.75);
+
+    osc.start(now);
+    osc.stop(now + 0.75);
+  } catch (e) {
+    console.warn("Siren tone error:", e);
+  }
+}
+
+function startEmergencySiren() {
+  isSirenMuted = false;
+  updateSirenMuteUI();
+  stopEmergencySiren();
+  playSirenTone();
+
+  if (navigator.vibrate) {
+    try { navigator.vibrate([600, 200, 600, 200, 900]); } catch (e) {}
+  }
+
+  sirenInterval = setInterval(() => {
+    if (state.activeSos && state.activeSos.length > 0 && !isSirenMuted) {
+      playSirenTone();
+      if (navigator.vibrate) {
+        try { navigator.vibrate([500, 250, 500]); } catch (e) {}
+      }
+    } else if (!state.activeSos || state.activeSos.length === 0) {
+      stopEmergencySiren();
+    }
+  }, 1100);
+}
+
+function stopEmergencySiren() {
+  if (sirenInterval) {
+    clearInterval(sirenInterval);
+    sirenInterval = null;
+  }
+}
+
+function toggleSirenAudio() {
+  isSirenMuted = !isSirenMuted;
+  if (isSirenMuted) {
+    stopEmergencySiren();
+  } else {
+    startEmergencySiren();
+  }
+  updateSirenMuteUI();
+}
+
+function updateSirenMuteUI() {
+  const btnText = document.getElementById('btn-toggle-siren-text');
+  const modalBtnText = document.getElementById('modal-siren-toggle-text');
+  if (isSirenMuted) {
+    if (btnText) btnText.innerText = "Activar Sonido";
+    if (modalBtnText) modalBtnText.innerText = "Reanudar Sirena";
+  } else {
+    if (btnText) btnText.innerText = "Silenciar";
+    if (modalBtnText) modalBtnText.innerText = "Silenciar Sirena";
   }
 }
 
@@ -723,12 +809,18 @@ function closeFloatingMemberCard() {
 }
 
 function logoutUser() {
-  const confirmLogout = confirm("¿Deseas cerrar tu sesión en FamSafe?\n\nTus datos y familiares seguirán seguros en la nube.");
+  const confirmLogout = confirm("¿Deseas cerrar tu sesión en FamSafe?\n\nImportante: Al cerrar sesión se detiene el envío de tu ubicación en tiempo real hasta que vuelvas a ingresar.");
   if (!confirmLogout) return;
+
+  if (gpsWatchId && navigator.geolocation) {
+    try { navigator.geolocation.clearWatch(gpsWatchId); } catch (e) {}
+    gpsWatchId = null;
+  }
 
   localStorage.removeItem('famsafe_circle_id');
   localStorage.removeItem('famsafe_current_member_id');
   localStorage.removeItem('famsafe_user');
+  localStorage.removeItem('famsafe_user_email');
   CURRENT_CIRCLE_ID = null;
 
   window.location.href = '/';
@@ -807,23 +899,39 @@ function setupSocket() {
   });
 
   socket.on('sos:triggered', ({ sosSession, alert, member }) => {
+    state.activeSos = (state.activeSos || []).filter(s => s.id !== sosSession.id);
     state.activeSos.push(sosSession);
     const idx = state.members.findIndex(m => m.id === member.id);
-    if (idx !== -1) state.members[idx] = member;
+    if (idx !== -1) {
+      state.members[idx] = member;
+    } else {
+      state.members.push(member);
+    }
     updateOrCreateMemberMarker(member);
     renderMembers();
     checkActiveSos();
-    playChime('emergency');
+    startEmergencySiren();
+    openSosAlertModal(sosSession, member);
     focusMemberOnMap(member.id);
     sendDeviceNotification("🚨 ¡ALERTA SOS FAMILIAR!", `${member.name} necesita auxilio inmediato. Toca para ver su posición GPS en vivo.`, 'emergency');
   });
 
   socket.on('sos:resolved', ({ sosId, member }) => {
-    state.activeSos = state.activeSos.filter(s => s.id !== sosId);
+    stopEmergencySiren();
+    closeSosAlertModal();
+    state.activeSos = (state.activeSos || []).filter(s => s.id !== sosId);
     if (member) {
       const idx = state.members.findIndex(m => m.id === member.id);
       if (idx !== -1) state.members[idx] = member;
       updateOrCreateMemberMarker(member);
+      renderMembers();
+    } else {
+      state.members.forEach(m => {
+        if (m.status === 'sos') {
+          m.status = 'stationary';
+          updateOrCreateMemberMarker(m);
+        }
+      });
       renderMembers();
     }
     checkActiveSos();
@@ -1075,18 +1183,133 @@ async function triggerRealSos() {
   }
 }
 
+function openSosAlertModal(sosSession, member) {
+  const modal = document.getElementById('modal-sos-alert');
+  if (!modal) return;
+
+  const nameEl = document.getElementById('sos-modal-member-name');
+  if (nameEl) nameEl.innerText = member?.name || sosSession?.memberName || "Familiar en Peligro";
+
+  const addrEl = document.getElementById('sos-modal-address');
+  if (addrEl) addrEl.innerText = member?.address || sosSession?.note || "Ubicación transmitida en tiempo real";
+
+  const timeEl = document.getElementById('sos-modal-time');
+  if (timeEl) timeEl.innerText = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const accEl = document.getElementById('sos-modal-accuracy');
+  if (accEl) accEl.innerText = member?.accuracy ? `± ${Math.round(member.accuracy)} m` : "± 5 metros";
+
+  const callBtn = document.getElementById('sos-modal-call-btn');
+  if (callBtn) {
+    if (member?.phone) {
+      callBtn.href = `tel:${member.phone}`;
+      callBtn.classList.remove('hidden');
+    } else {
+      callBtn.classList.add('hidden');
+    }
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeSosAlertModal() {
+  document.getElementById('modal-sos-alert')?.classList.add('hidden');
+}
+
+function focusSosOnMap() {
+  closeSosAlertModal();
+  if (state.activeSos && state.activeSos.length > 0) {
+    const current = state.activeSos[0];
+    focusMemberOnMap(current.memberId);
+  }
+}
+
 async function resolveCurrentSos() {
-  if (state.activeSos.length === 0) return;
-  const current = state.activeSos[0];
-  await fetch(`${BACKEND_URL}/api/sos/resolve`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sosId: current.id })
+  stopEmergencySiren();
+  closeSosAlertModal();
+
+  const current = state.activeSos && state.activeSos.length > 0 ? state.activeSos[0] : null;
+  const currentSosId = current ? current.id : null;
+  const circleId = state.circle ? state.circle.id : localStorage.getItem('famsafe_circle_id');
+
+  // Optimistically clear local activeSos state
+  state.activeSos = [];
+  checkActiveSos();
+
+  // Reset any member with status 'sos' locally
+  state.members.forEach(m => {
+    if (m.status === 'sos') {
+      m.status = 'stationary';
+      updateOrCreateMemberMarker(m);
+    }
   });
+  renderMembers();
+
+  try {
+    await fetch(`${BACKEND_URL}/api/sos/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sosId: currentSosId, circleId })
+    });
+    if (socket) {
+      socket.emit('sos:resolved', { sosId: currentSosId, circleId });
+    }
+  } catch (err) {
+    console.error("Error al resolver alerta SOS:", err);
+  }
 }
 
 function playDemoSiren() {
   playChime('emergency');
+}
+
+// Credential Management Modal Handlers
+function openCredentialsModal() {
+  const currentMember = getCurrentMember();
+  const emailInput = document.getElementById('cred-email');
+  if (emailInput && currentMember?.email) {
+    emailInput.value = currentMember.email;
+  }
+  document.getElementById('modal-credentials')?.classList.remove('hidden');
+}
+
+function closeCredentialsModal() {
+  document.getElementById('modal-credentials')?.classList.add('hidden');
+}
+
+async function handleSetMemberCredentials(e) {
+  e.preventDefault();
+  const currentMember = getCurrentMember();
+  if (!currentMember) {
+    alert("No se detectó un integrante activo en este dispositivo.");
+    return;
+  }
+
+  const email = document.getElementById('cred-email').value.trim();
+  const password = document.getElementById('cred-password').value;
+  const passwordConfirm = document.getElementById('cred-password-confirm').value;
+
+  if (password !== passwordConfirm) {
+    alert("Las contraseñas no coinciden. Por favor verifícalas.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/members/${currentMember.id}/credentials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al guardar credenciales");
+
+    currentMember.email = email;
+    localStorage.setItem('famsafe_user_email', email);
+    closeCredentialsModal();
+    alert("🎉 ¡Tus credenciales se guardaron con éxito! Ahora puedes iniciar sesión con tu correo y contraseña en cualquier celular o equipo.");
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
 }
 
 // Modal Handlers
@@ -1792,7 +2015,8 @@ function copyInviteCode() {
 }
 
 // Multi-tenant Auth & WhatsApp Modals
-function openAuthModal() {
+function openAuthModal(tab) {
+  if (tab) switchAuthTab(tab);
   document.getElementById('modal-auth').classList.remove('hidden');
 }
 
@@ -1878,11 +2102,35 @@ async function handleRegisterFamily(e) {
   }
 }
 
+let currentLoginMethod = 'email';
+
+function setLoginMethod(method) {
+  currentLoginMethod = method;
+  const btnEmail = document.getElementById('login-method-email');
+  const btnCode = document.getElementById('login-method-code');
+  const fieldsEmail = document.getElementById('login-email-fields');
+  const fieldsCode = document.getElementById('login-code-fields');
+
+  if (method === 'code') {
+    if (btnCode) btnCode.className = "flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
+    if (btnEmail) btnEmail.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition";
+    if (fieldsEmail) fieldsEmail.classList.add('hidden');
+    if (fieldsCode) fieldsCode.classList.remove('hidden');
+  } else {
+    if (btnEmail) btnEmail.className = "flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
+    if (btnCode) btnCode.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition";
+    if (fieldsEmail) fieldsEmail.classList.remove('hidden');
+    if (fieldsCode) fieldsCode.classList.add('hidden');
+  }
+}
+
 async function handleJoinFamily(e) {
   e.preventDefault();
-  const inviteCode = document.getElementById('join-invite-code').value;
-  const memberName = document.getElementById('join-member-name').value;
+  const inviteCode = document.getElementById('join-invite-code').value.trim();
+  const memberName = document.getElementById('join-member-name').value.trim();
   const role = document.getElementById('join-member-role').value;
+  const email = document.getElementById('join-email')?.value.trim() || undefined;
+  const password = document.getElementById('join-password')?.value || undefined;
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/circles/join`, {
@@ -1892,6 +2140,8 @@ async function handleJoinFamily(e) {
         inviteCode,
         memberName,
         role,
+        email,
+        password,
         lat: userLiveCoords ? userLiveCoords.lat : undefined,
         lng: userLiveCoords ? userLiveCoords.lng : undefined
       })
@@ -1909,6 +2159,7 @@ async function handleJoinFamily(e) {
     CURRENT_CIRCLE_ID = data.circle.id;
     localStorage.setItem('famsafe_circle_id', data.circle.id);
     if (data.member?.id) localStorage.setItem('famsafe_current_member_id', data.member.id);
+    if (data.user?.email) localStorage.setItem('famsafe_user_email', data.user.email);
     closeAuthModal();
     alert(`¡Te has unido exitosamente a la ${data.circle.name}!`);
     await fetchCircleData();
@@ -1922,7 +2173,44 @@ async function handleJoinFamily(e) {
 
 async function handleLoginUser(e) {
   e.preventDefault();
-  const email = document.getElementById('login-email').value;
+
+  if (currentLoginMethod === 'code') {
+    const inviteCode = document.getElementById('login-invite-code')?.value.trim();
+    const memberName = document.getElementById('login-member-name')?.value.trim();
+    if (!inviteCode) {
+      alert("Por favor ingresa el código familiar de 6 dígitos.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/login-with-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteCode, memberName })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.error) {
+        alert("Error: " + (data?.error || "Código de invitación no válido."));
+        return;
+      }
+
+      CURRENT_CIRCLE_ID = data.circle.id;
+      localStorage.setItem('famsafe_circle_id', data.circle.id);
+      if (data.member?.id) localStorage.setItem('famsafe_current_member_id', data.member.id);
+      closeAuthModal();
+      alert(`¡Bienvenido de vuelta a la ${data.circle.name}!`);
+      await fetchCircleData();
+      if (socket) {
+        socket.emit('circle:join', CURRENT_CIRCLE_ID);
+      }
+    } catch (err) {
+      alert("Error al ingresar con código: " + err.message);
+    }
+    return;
+  }
+
+  // Regular email & password login
+  const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
 
   try {
@@ -1944,6 +2232,7 @@ async function handleLoginUser(e) {
     CURRENT_CIRCLE_ID = data.circle.id;
     localStorage.setItem('famsafe_circle_id', data.circle.id);
     if (data.member?.id) localStorage.setItem('famsafe_current_member_id', data.member.id);
+    if (data.user?.email) localStorage.setItem('famsafe_user_email', data.user.email);
     closeAuthModal();
     alert(`¡Bienvenido de vuelta, ${data.user.name}!`);
     await fetchCircleData();

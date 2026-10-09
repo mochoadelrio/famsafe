@@ -391,7 +391,7 @@ class Database {
     return { circle: newCircle, member: newMember, user: newUser };
   }
 
-  joinFamilyWithCode({ inviteCode, memberName, role = "child", phone = "", lat, lng, address }) {
+  joinFamilyWithCode({ inviteCode, memberName, role = "child", phone = "", lat, lng, address, email, password }) {
     const circle = this.findCircleByInviteCode(inviteCode);
     if (!circle) {
       throw new Error(`Código de invitación '${inviteCode}' no encontrado. Verifica con el administrador de la familia.`);
@@ -430,6 +430,29 @@ class Database {
 
     this.data.members.push(newMember);
 
+    // If user provided email and password, create login credential right away
+    let newUser = null;
+    if (email && password) {
+      if (!this.data.users) this.data.users = [];
+      const normalizedEmail = email.toLowerCase().trim();
+      newUser = {
+        id: `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        email: normalizedEmail,
+        password,
+        name: memberName,
+        circleId: circle.id,
+        memberId: newMember.id,
+        role: role || "child",
+        createdAt: new Date().toISOString()
+      };
+      const existingUserIdx = this.data.users.findIndex(u => u.email === normalizedEmail);
+      if (existingUserIdx !== -1) {
+        this.data.users[existingUserIdx] = newUser;
+      } else {
+        this.data.users.push(newUser);
+      }
+    }
+
     const alert = this.addAlert({
       circleId: circle.id,
       memberId: newMember.id,
@@ -439,7 +462,42 @@ class Database {
     });
 
     this.save();
-    return { circle, member: newMember, alert };
+    return { circle, member: newMember, user: newUser, alert };
+  }
+
+  setMemberCredentials(memberId, email, password) {
+    const member = this.getMemberById(memberId);
+    if (!member) throw new Error("Miembro no encontrado.");
+    if (!email || !password) throw new Error("Correo y contraseña requeridos.");
+
+    if (!this.data.users) this.data.users = [];
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = this.data.users.find(u => u.email === normalizedEmail && u.memberId !== memberId);
+    if (existing) {
+      throw new Error("Este correo ya está registrado por otra cuenta.");
+    }
+
+    let user = this.data.users.find(u => u.memberId === memberId);
+    if (user) {
+      user.email = normalizedEmail;
+      user.password = password;
+      user.name = member.name;
+    } else {
+      user = {
+        id: `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        email: normalizedEmail,
+        password,
+        name: member.name,
+        circleId: member.circleId,
+        memberId: member.id,
+        role: member.role,
+        createdAt: new Date().toISOString()
+      };
+      this.data.users.push(user);
+    }
+    this.save();
+    return { user, member };
   }
 
   authenticateUser(email, password) {
