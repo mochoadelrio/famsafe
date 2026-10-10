@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>FamSafe - Plataforma Familiar de Seguridad y Rastreo en Tiempo Real</title>
 
   <!-- Favicon & PWA App Icons -->
@@ -172,36 +172,31 @@
     <!-- SIDEBAR ON DESKTOP / BOTTOM SHEET ON MOBILE -->
     <aside id="sidebar-panel" class="fixed md:static inset-x-0 bottom-14 md:bottom-auto z-30 bg-white rounded-t-3xl md:rounded-none shadow-2xl md:shadow-lg border-t md:border-t-0 md:border-r border-slate-200 flex flex-col transition-all duration-300 md:w-80 lg:w-96 md:h-full max-h-[75vh] md:max-h-none mobile-sheet-collapsed">
       <!-- Mobile Drag Handle & Header -->
-      <div class="md:hidden flex flex-col items-center pt-2 pb-2 px-4 cursor-pointer bg-white rounded-t-3xl border-b border-slate-100 select-none shrink-0" onclick="toggleMobileSheet()">
-        <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1.5"></div>
-        <div class="flex items-center justify-between w-full text-xs font-bold text-slate-700">
-          <span id="mobile-sheet-title" class="flex items-center gap-1.5">
-            <i class="ph-bold ph-users text-blue-600"></i>
-            <span>Familia (<span id="mobile-member-count">1</span>)</span>
+      <div class="md:hidden flex flex-col items-center pt-2.5 pb-2 px-4 bg-white rounded-t-3xl border-b border-slate-100 select-none shrink-0" onclick="handleMobileNav('map')">
+        <div class="w-12 h-1 bg-slate-300 rounded-full mb-2"></div>
+        <div class="flex items-center justify-between w-full text-xs font-bold text-slate-800">
+          <span id="mobile-sheet-title" class="flex items-center gap-2 text-sm font-black text-slate-900">
+            <i id="mobile-sheet-title-icon" class="ph-bold ph-users text-blue-600 text-base"></i>
+            <span id="mobile-sheet-title-text">Familia</span>
+            <span id="mobile-sheet-badge" class="text-[11px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.5 rounded-full">2</span>
           </span>
-          <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1 text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">
-              <span id="mobile-sheet-action-text">Ver Lista</span>
-              <i id="mobile-sheet-chevron" class="ph-bold ph-caret-up text-xs"></i>
-            </div>
-            <button onclick="event.stopPropagation(); toggleMobileSheet(false);" class="p-1 text-slate-400 hover:text-slate-600 rounded-full" title="Cerrar lista">
-              <i class="ph-bold ph-x text-sm"></i>
-            </button>
-          </div>
+          <button type="button" onclick="event.stopPropagation(); handleMobileNav('map');" class="p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition flex items-center justify-center" title="Cerrar y volver al mapa">
+            <i class="ph-bold ph-x text-sm"></i>
+          </button>
         </div>
       </div>
 
-      <!-- Tabs -->
-      <div class="flex border-b border-slate-200 text-xs font-bold text-slate-500">
-        <button onclick="switchTab('members')" id="tab-btn-members" class="flex-1 py-3 px-2 border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5">
+      <!-- Tabs (Desktop & Mobile Segmented Control) -->
+      <div class="flex border-b border-slate-200 text-xs font-bold text-slate-500 bg-slate-50 md:bg-transparent p-1 md:p-0">
+        <button onclick="switchTab('members')" id="tab-btn-members" class="flex-1 py-2 md:py-3 px-2 rounded-xl md:rounded-none border-b-0 md:border-b-2 border-blue-600 bg-white md:bg-transparent text-blue-600 shadow-sm md:shadow-none flex items-center justify-center gap-1.5 transition">
           <i class="ph-bold ph-users text-sm"></i>
           <span>Familia</span>
         </button>
-        <button onclick="switchTab('zones')" id="tab-btn-zones" class="flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5">
+        <button onclick="switchTab('zones')" id="tab-btn-zones" class="flex-1 py-2 md:py-3 px-2 rounded-xl md:rounded-none border-b-0 md:border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 transition">
           <i class="ph-bold ph-shield-chevron text-sm"></i>
           <span>Zonas</span>
         </button>
-        <button onclick="switchTab('alerts')" id="tab-btn-alerts" class="flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5 relative">
+        <button onclick="switchTab('alerts')" id="tab-btn-alerts" class="flex-1 py-2 md:py-3 px-2 rounded-xl md:rounded-none border-b-0 md:border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 relative transition">
           <i class="ph-bold ph-bell text-sm"></i>
           <span>Alertas</span>
           <span id="unread-alert-badge" class="hidden w-2 h-2 rounded-full bg-red-500"></span>
@@ -474,27 +469,30 @@
   </div>
 
   <!-- MOBILE BOTTOM NAVIGATION BAR (FIXED BOTTOM DOCK) -->
-  <nav class="md:hidden fixed bottom-0 inset-x-0 h-14 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 flex items-center justify-around px-2 shadow-lg safe-bottom">
-    <button onclick="handleMobileNav('map')" id="nav-btn-map" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-blue-600 transition">
-      <i class="ph-bold ph-map-trifold text-lg"></i>
+  <nav class="md:hidden fixed bottom-0 inset-x-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 flex items-center justify-around px-2 shadow-lg safe-bottom">
+    <button onclick="handleMobileNav('map')" id="nav-btn-map" class="flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-black text-blue-600 transition">
+      <i class="ph-bold ph-map-trifold text-xl"></i>
       <span>Mapa</span>
     </button>
-    <button onclick="handleMobileNav('members')" id="nav-btn-members" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition">
-      <i class="ph-bold ph-users text-lg"></i>
+    <button onclick="handleMobileNav('members')" id="nav-btn-members" class="flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-blue-600 transition relative">
+      <i class="ph-bold ph-users text-xl"></i>
       <span>Familia</span>
+      <span id="mobile-nav-members-count" class="absolute top-1 right-3 text-[9px] bg-blue-100 text-blue-700 font-extrabold px-1 rounded-full">2</span>
     </button>
-    <button onclick="handleMobileNav('zones')" id="nav-btn-zones" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition">
-      <i class="ph-bold ph-shield-chevron text-lg"></i>
+    <button onclick="handleMobileNav('zones')" id="nav-btn-zones" class="flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-blue-600 transition">
+      <i class="ph-bold ph-shield-chevron text-xl"></i>
       <span>Zonas</span>
     </button>
-    <button onclick="handleMobileNav('alerts')" id="nav-btn-alerts" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition relative">
-      <i class="ph-bold ph-bell text-lg"></i>
+    <button onclick="handleMobileNav('alerts')" id="nav-btn-alerts" class="flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-blue-600 transition relative">
+      <i class="ph-bold ph-bell text-xl"></i>
       <span>Alertas</span>
-      <span id="mobile-alert-dot" class="hidden absolute top-1 right-5 w-2 h-2 rounded-full bg-red-500"></span>
+      <span id="mobile-alert-dot" class="hidden absolute top-1 right-3 w-2 h-2 rounded-full bg-red-500"></span>
     </button>
-    <button onclick="triggerRealSos()" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-black text-red-600 active:scale-95 transition">
-      <i class="ph-bold ph-warning-octagon text-lg animate-pulse"></i>
-      <span>SOS</span>
+    <button onclick="triggerRealSos()" class="flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-black text-red-600 active:scale-95 transition" title="Alerta de Auxilio SOS">
+      <div class="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md shadow-red-200 animate-pulse">
+        <i class="ph-bold ph-warning-octagon text-base"></i>
+      </div>
+      <span class="mt-0.5 text-[9px] font-black text-red-600">SOS</span>
     </button>
   </nav>
 

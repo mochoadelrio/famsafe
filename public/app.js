@@ -543,6 +543,10 @@ function renderMembers() {
 
   const mobileCountElem = document.getElementById('mobile-member-count');
   if (mobileCountElem) mobileCountElem.innerText = state.members.length;
+  const navMembersCount = document.getElementById('mobile-nav-members-count');
+  if (navMembersCount) navMembersCount.innerText = state.members.length;
+  const sheetBadge = document.getElementById('mobile-sheet-badge');
+  if (sheetBadge) sheetBadge.innerText = state.members.length;
 
   state.members.forEach(member => {
     // Add to Walk Select
@@ -1029,17 +1033,57 @@ function switchTab(tab) {
     const el = document.getElementById(`tab-${t}`);
     const btn = document.getElementById(`tab-btn-${t}`);
     if (el) el.classList.add('hidden');
-    if (btn) btn.className = "flex-1 py-3 px-2 border-b-2 border-transparent hover:text-slate-700 flex items-center justify-center gap-1.5";
+    if (btn) btn.className = "flex-1 py-2 md:py-3 px-2 rounded-xl md:rounded-none border-b-0 md:border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 transition";
   });
 
   const activeEl = document.getElementById(`tab-${tab}`);
   const activeBtn = document.getElementById(`tab-btn-${tab}`);
   if (activeEl) activeEl.classList.remove('hidden');
-  if (activeBtn) activeBtn.className = "flex-1 py-3 px-2 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center justify-center gap-1.5";
+  if (activeBtn) activeBtn.className = "flex-1 py-2 md:py-3 px-2 rounded-xl md:rounded-none border-b-0 md:border-b-2 border-blue-600 bg-white md:bg-transparent text-blue-600 font-extrabold shadow-sm md:shadow-none flex items-center justify-center gap-1.5 transition";
 
   if (tab === 'alerts') {
     document.getElementById('unread-alert-badge')?.classList.add('hidden');
     document.getElementById('mobile-alert-dot')?.classList.add('hidden');
+  }
+
+  updateMobileSheetHeader(tab);
+
+  // Sync with bottom navigation dock
+  ['map', 'members', 'zones', 'alerts'].forEach(t => {
+    const btn = document.getElementById(`nav-btn-${t}`);
+    if (btn) {
+      if (t === tab) {
+        btn.className = "flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-black text-blue-600 transition";
+      } else {
+        btn.className = "flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-blue-600 transition relative";
+      }
+    }
+  });
+}
+
+function updateMobileSheetHeader(tab) {
+  const icon = document.getElementById('mobile-sheet-title-icon');
+  const text = document.getElementById('mobile-sheet-title-text');
+  const badge = document.getElementById('mobile-sheet-badge');
+
+  if (tab === 'members') {
+    if (icon) icon.className = "ph-bold ph-users text-blue-600 text-base";
+    if (text) text.innerText = "Familia";
+    if (badge) {
+      badge.innerText = state.members ? state.members.length : 1;
+      badge.classList.remove('hidden');
+    }
+  } else if (tab === 'zones') {
+    if (icon) icon.className = "ph-bold ph-shield-chevron text-blue-600 text-base";
+    if (text) text.innerText = "Zonas Seguras";
+    if (badge) {
+      badge.innerText = state.safeZones ? state.safeZones.length : 0;
+      badge.classList.remove('hidden');
+    }
+  } else if (tab === 'alerts') {
+    if (icon) icon.className = "ph-bold ph-bell text-blue-600 text-base";
+    if (text) text.innerText = "Historial de Alertas";
+    if (badge) badge.classList.add('hidden');
   }
 }
 
@@ -1056,21 +1100,12 @@ function toggleMobileSheet(forceState) {
     isMobileSheetExpanded = !isMobileSheetExpanded;
   }
 
-  const chevron = document.getElementById('mobile-sheet-chevron');
-  const actionText = document.getElementById('mobile-sheet-action-text');
-
-  sheet.classList.remove('mobile-sheet-hidden');
-
   if (isMobileSheetExpanded) {
-    sheet.classList.remove('mobile-sheet-collapsed');
+    sheet.classList.remove('mobile-sheet-collapsed', 'mobile-sheet-hidden');
     sheet.classList.add('mobile-sheet-expanded');
-    if (chevron) chevron.className = "ph-bold ph-caret-down text-xs";
-    if (actionText) actionText.innerText = "Ocultar";
   } else {
     sheet.classList.remove('mobile-sheet-expanded');
     sheet.classList.add('mobile-sheet-collapsed');
-    if (chevron) chevron.className = "ph-bold ph-caret-up text-xs";
-    if (actionText) actionText.innerText = "Ver Lista";
   }
   if (map) {
     setTimeout(() => map.invalidateSize(), 320);
@@ -1078,19 +1113,8 @@ function toggleMobileSheet(forceState) {
 }
 
 function handleMobileNav(tab) {
-  const navTabs = ['map', 'members', 'zones', 'alerts'];
-  navTabs.forEach(t => {
-    const btn = document.getElementById(`nav-btn-${t}`);
-    if (btn) {
-      if (t === tab) {
-        btn.className = "flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-blue-600 transition";
-      } else {
-        btn.className = "flex-1 py-1 flex flex-col items-center justify-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition relative";
-      }
-    }
-  });
-
   const sheet = document.getElementById('sidebar-panel');
+
   if (tab === 'map') {
     // Hide sheet completely to reveal full screen map
     if (sheet) {
@@ -1098,6 +1122,17 @@ function handleMobileNav(tab) {
       sheet.classList.add('mobile-sheet-collapsed');
       isMobileSheetExpanded = false;
     }
+    closeFloatingMemberCard();
+    ['map', 'members', 'zones', 'alerts'].forEach(t => {
+      const btn = document.getElementById(`nav-btn-${t}`);
+      if (btn) {
+        if (t === 'map') {
+          btn.className = "flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-black text-blue-600 transition";
+        } else {
+          btn.className = "flex-1 py-1.5 flex flex-col items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-blue-600 transition relative";
+        }
+      }
+    });
     if (map) {
       setTimeout(() => {
         map.invalidateSize();
