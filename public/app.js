@@ -167,6 +167,13 @@ function initMap() {
 
   // Auto-detect real user city and location
   detectUserLocation();
+
+  window.addEventListener('resize', () => {
+    if (map) map.invalidateSize();
+  });
+  window.addEventListener('orientationchange', () => {
+    if (map) setTimeout(() => map.invalidateSize(), 300);
+  });
 }
 
 function handleGpsSuccess(pos, forceCenter = false) {
@@ -801,6 +808,9 @@ function showFloatingMemberCard(member) {
   }
 
   card.classList.remove('hidden');
+  if (window.innerWidth < 768) {
+    toggleMobileSheet(false);
+  }
 }
 
 function closeFloatingMemberCard() {
