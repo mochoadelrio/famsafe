@@ -441,6 +441,14 @@ function toggleSatelliteView() {
   }
 }
 
+function openPaywallModal(data = {}) {
+  const plan = data.plan || (state.circle?.plan) || 'pro_family';
+  const reasonMsg = data.message || "Para iniciar sesión o acceder al panel se requiere una suscripción pagada activa.";
+  alert(`🔒 ACCESO RESTRINGIDO - SUSCRIPCIÓN REQUERIDA\n\n${reasonMsg}\n\nPrimero debes seleccionar y pagar uno de los paquetes disponibles para activar tu cuenta.`);
+  closeAuthModal();
+  openPricingModal();
+}
+
 // Fetch Full Initial State from Backend
 async function fetchCircleData() {
   if (!CURRENT_CIRCLE_ID) {
@@ -452,6 +460,17 @@ async function fetchCircleData() {
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/circles/${CURRENT_CIRCLE_ID}`);
+    if (res.status === 402) {
+      const errData = await res.json().catch(() => ({}));
+      CURRENT_CIRCLE_ID = null;
+      localStorage.removeItem('famsafe_circle_id');
+      localStorage.removeItem('famsafe_current_member_id');
+      state = { circle: null, members: [], safeZones: [], alerts: [], activeSos: [], activeWalks: [] };
+      renderEmptyCircleState();
+      openPaywallModal(errData);
+      return;
+    }
+
     if (!res.ok) {
       CURRENT_CIRCLE_ID = null;
       localStorage.removeItem('famsafe_circle_id');
@@ -495,9 +514,19 @@ function checkSubscriptionExpiration() {
     return;
   }
 
+  // Exempt Founder and Lifetime accounts (Manuel Ochoa, Monica/Lizbeth, FAM985)
+  const isFounder = state.circle.subscription.isLifetime || state.circle.subscription.isFounder || state.circle.id === "circle-1791444529610-680" || state.circle.inviteCode === "FAM985";
+  if (isFounder) {
+    banner.classList.add('hidden');
+    return;
+  }
+
   const renewsAt = state.circle.subscription.renewsAt;
   if (!renewsAt) {
-    banner.classList.add('hidden');
+    CURRENT_CIRCLE_ID = null;
+    localStorage.removeItem('famsafe_circle_id');
+    renderEmptyCircleState();
+    openPaywallModal({ plan: state.circle.plan, message: "Tu cuenta familiar no cuenta con una suscripción pagada activa." });
     return;
   }
 
@@ -506,7 +535,16 @@ function checkSubscriptionExpiration() {
   const diffMs = renewsDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 3600 * 24));
 
-  // If 3 days or fewer remaining (or already expired diffDays <= 0)
+  // If expired: lock immediately!
+  if (diffDays <= 0) {
+    CURRENT_CIRCLE_ID = null;
+    localStorage.removeItem('famsafe_circle_id');
+    renderEmptyCircleState();
+    openPaywallModal({ plan: state.circle.plan, message: `Tu suscripción venció el ${renewsDate.toLocaleDateString('es-MX')}. Debes pagar tu renovación para ingresar.` });
+    return;
+  }
+
+  // If 3 days or fewer remaining (warning)
   if (diffDays <= 3) {
     const formattedDate = renewsDate.toLocaleDateString('es-MX', {
       day: '2-digit',
@@ -518,10 +556,7 @@ function checkSubscriptionExpiration() {
     const dateElem = document.getElementById('sub-banner-date');
     const descElem = document.getElementById('sub-banner-desc');
 
-    if (diffDays <= 0) {
-      if (titleElem) titleElem.innerText = `¡Tu suscripción ha vencido hoy!`;
-      if (descElem) descElem.innerHTML = `Venció el <strong class="text-white underline">${formattedDate}</strong>. Renueva ahora o haz un Upgrade: tu nuevo periodo se reactivará de inmediato manteniendo a tu familia segura.`;
-    } else if (diffDays === 1) {
+    if (diffDays === 1) {
       if (titleElem) titleElem.innerText = `¡Tu suscripción vence mañana!`;
       if (descElem) descElem.innerHTML = `Vence el <strong class="text-white underline">${formattedDate}</strong>. Si renuevas hoy, tu nuevo periodo empezará exactamente el <strong class="text-white underline">${formattedDate}</strong> sin perder días.`;
     } else {
@@ -2381,6 +2416,14 @@ async function handleRegisterFamily(e) {
   const password = document.getElementById('reg-password').value;
   const plan = document.getElementById('reg-plan')?.value || 'pro_family';
 
+  const isExempt = email.toLowerCase().trim() === 'm.ochoa.delrio@gmail.com' || email.toLowerCase().trim() === 'lizbeta92@gmail.com';
+  if (!isExempt && !window.currentValidatedPaymentToken) {
+    alert("🔒 SUSCRIPCIÓN REQUERIDA\n\nNo es posible crear una cuenta familiar sin una suscripción activa.\n\nPor favor realiza el pago de tu paquete por transferencia SPEI para activar el servicio de inmediato.");
+    closeAuthModal();
+    openCheckoutModal(plan);
+    return;
+  }
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/register-family`, {
       method: 'POST',
@@ -2397,6 +2440,12 @@ async function handleRegisterFamily(e) {
       })
     });
     const data = await res.json().catch(() => null);
+
+    if (res.status === 402 || data?.error === 'payment_required') {
+      openPaywallModal(data);
+      return;
+    }
+
     if (!res.ok || !data) {
       alert("Error al registrar familia. Verifica los datos e intenta nuevamente.");
       return;
@@ -2466,6 +2515,12 @@ async function handleJoinFamily(e) {
       })
     });
     const data = await res.json().catch(() => null);
+
+    if (res.status === 402 || data?.error === 'payment_required') {
+      alert("🔒 SUSCRIPCIÓN REQUERIDA\n\n" + (data?.message || "El círculo familiar tiene su suscripción inactiva o vencida. El tutor debe pagar alguno de los paquetes para habilitar el acceso."));
+      return;
+    }
+
     if (!res.ok || !data) {
       alert("Código de invitación no válido o círculo no encontrado.");
       return;
@@ -2508,6 +2563,12 @@ async function handleLoginUser(e) {
         body: JSON.stringify({ inviteCode, memberName })
       });
       const data = await res.json().catch(() => null);
+
+      if (res.status === 402 || data?.error === 'payment_required') {
+        openPaywallModal(data);
+        return;
+      }
+
       if (!res.ok || !data || data.error) {
         alert("Error: " + (data?.error || "Código de invitación no válido."));
         return;
@@ -2539,8 +2600,18 @@ async function handleLoginUser(e) {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json().catch(() => null);
+
+    if (res.status === 402 || data?.error === 'payment_required') {
+      openPaywallModal(data);
+      return;
+    }
+
     if (!res.ok || !data) {
       alert("Correo o contraseña incorrectos, o la cuenta aún no ha sido creada.");
+      return;
+    }
+    if (data.error) {
+      alert("Error: " + data.error);
       return;
     }
     if (data.error) {

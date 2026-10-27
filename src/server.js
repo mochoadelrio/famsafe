@@ -39,25 +39,71 @@ app.get('/landing', (req, res) => res.sendFile(path.join(__dirname, '../public/l
 app.get('/privacidad', (req, res) => res.sendFile(path.join(__dirname, '../public/privacidad.html')));
 app.get('/terminos', (req, res) => res.sendFile(path.join(__dirname, '../public/terminos.html')));
 
+// ---------------- SUBSCRIPTION ENFORCEMENT & EXEMPTION SYSTEM ----------------
+
+// Strict Exemption: Manuel Ochoa, Lizbeth (Esposa), and the Founder circle FAM985
+export function isExemptAccount(circle, user = null) {
+  if (circle) {
+    if (circle.id === "circle-1791444529610-680" || circle.inviteCode === "FAM985") return true;
+    if (circle.name && circle.name.toLowerCase().includes("ochoa gonzález")) return true;
+    if (circle.subscription?.isLifetime || circle.subscription?.isFounder) return true;
+  }
+  if (user) {
+    if (user.isFounder || user.isOwner) return true;
+    const em = (user.email || "").toLowerCase().trim();
+    if (em === 'm.ochoa.delrio@gmail.com' || em === 'lizbeta92@gmail.com') return true;
+  }
+  return false;
+}
+
+// Enforce active paid subscription for any external user
+export function checkCircleSubscription(circle, user = null) {
+  if (isExemptAccount(circle, user)) {
+    return { valid: true, isExempt: true };
+  }
+  if (!circle || !circle.subscription) {
+    return { valid: false, reason: "no_subscription", message: "Este círculo familiar no cuenta con una suscripción activa." };
+  }
+  if (circle.subscription.status !== "active") {
+    return { valid: false, reason: "inactive", message: "La suscripción familiar se encuentra inactiva o pendiente de pago." };
+  }
+  const renewsAt = circle.subscription.renewsAt ? new Date(circle.subscription.renewsAt).getTime() : 0;
+  if (!renewsAt || renewsAt < Date.now()) {
+    return { valid: false, reason: "expired", message: "La suscripción familiar ha vencido. Por favor renueva tu plan para acceder al panel." };
+  }
+  return { valid: true, isExempt: false };
+}
+
 // ---------------- REST API ROUTES ----------------
 
-// Register a New Family Circle (with optional CEP verified paymentToken)
+// Register a New Family Circle (STRICT: Must have a validated payment token unless founder)
 app.post('/api/auth/register-family', (req, res) => {
   const { familyName, parentName, email, phone, password, plan, lat, lng, address, paymentToken } = req.body;
   if (!familyName || !parentName || !email || !password) {
     return res.status(400).json({ error: "Todos los campos principales son requeridos." });
   }
 
-  try {
-    let paymentMeta = null;
-    if (paymentToken && db.data.validatedPayments) {
-      paymentMeta = db.data.validatedPayments.find(p => p.token === paymentToken || p.paymentToken === paymentToken || p.banxicoFolio === paymentToken);
-    }
+  const normalizedEmail = email.toLowerCase().trim();
+  const isFounderEmail = normalizedEmail === 'm.ochoa.delrio@gmail.com' || normalizedEmail === 'lizbeta92@gmail.com';
 
+  let paymentMeta = null;
+  if (paymentToken && db.data.validatedPayments) {
+    paymentMeta = db.data.validatedPayments.find(p => p.token === paymentToken || p.paymentToken === paymentToken || p.banxicoFolio === paymentToken || p.trackingKey === paymentToken);
+  }
+
+  // Strict paywall enforcement: Non-founder accounts MUST have paid and validated their token
+  if (!isFounderEmail && !paymentMeta) {
+    return res.status(402).json({
+      error: "payment_required",
+      message: "Para crear tu círculo familiar en FamSafe se requiere completar y validar el pago de tu plan (SPEI o Tarjeta)."
+    });
+  }
+
+  try {
     const result = db.createFamilyAccount({
       familyName,
       parentName,
-      email,
+      email: normalizedEmail,
       phone,
       password,
       plan: plan || (paymentMeta?.planId) || "pro_family",
@@ -85,7 +131,7 @@ app.post('/api/auth/register-family', (req, res) => {
   }
 });
 
-// User Login
+// User Login (Validates credentials and subscription status)
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -94,6 +140,19 @@ app.post('/api/auth/login', (req, res) => {
 
   try {
     const result = db.authenticateUser(email, password);
+    const subCheck = checkCircleSubscription(result.circle, result.user);
+
+    if (!subCheck.valid) {
+      return res.status(402).json({
+        error: "payment_required",
+        message: subCheck.message,
+        circleId: result.circle?.id,
+        circleName: result.circle?.name,
+        plan: result.circle?.plan || "pro_family",
+        planName: result.circle?.subscription?.planName || "Familiar Pro ($79 MXN)"
+      });
+    }
+
     res.json({
       success: true,
       circle: result.circle,
@@ -105,11 +164,24 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-// Join Family by 6-digit Invite Code
+// Join Family by 6-digit Invite Code (Checks that target family has active subscription)
 app.post('/api/circles/join', (req, res) => {
   const { inviteCode, memberName, role, phone, lat, lng, address, email, password } = req.body;
   if (!inviteCode || !memberName) {
     return res.status(400).json({ error: "Código de invitación y nombre requeridos." });
+  }
+
+  const targetCircle = db.findCircleByInviteCode(inviteCode);
+  if (!targetCircle) {
+    return res.status(404).json({ error: `Código de invitación '${inviteCode}' no encontrado.` });
+  }
+
+  const subCheck = checkCircleSubscription(targetCircle);
+  if (!subCheck.valid) {
+    return res.status(402).json({
+      error: "payment_required",
+      message: "Este círculo familiar no cuenta con una suscripción pagada activa. El administrador de la familia debe renovar su plan para permitir el acceso de nuevos integrantes."
+    });
   }
 
   try {
@@ -154,13 +226,21 @@ app.post('/api/members/:id/credentials', (req, res) => {
   }
 });
 
-// Quick Login by 6-digit Invite Code (Alternative to email/password for kids and family)
+// Quick Login by 6-digit Invite Code (Enforces active subscription)
 app.post('/api/auth/login-with-code', (req, res) => {
   const { inviteCode, memberName } = req.body;
   if (!inviteCode) return res.status(400).json({ error: "Código de invitación requerido." });
 
   const circle = db.findCircleByInviteCode(inviteCode);
   if (!circle) return res.status(404).json({ error: "Código de invitación no válido." });
+
+  const subCheck = checkCircleSubscription(circle);
+  if (!subCheck.valid) {
+    return res.status(402).json({
+      error: "payment_required",
+      message: "El círculo familiar tiene su suscripción inactiva o vencida. El tutor debe renovar el plan para permitir el acceso."
+    });
+  }
 
   const members = db.getMembersByCircle(circle.id);
   let member = null;
@@ -200,6 +280,18 @@ app.get('/api/circles/:id', (req, res) => {
     return res.status(404).json({ error: "Círculo no encontrado" });
   }
 
+  const subCheck = checkCircleSubscription(circle);
+  if (!subCheck.valid) {
+    return res.status(402).json({
+      error: "payment_required",
+      message: subCheck.message,
+      circleId: circle.id,
+      circleName: circle.name,
+      plan: circle.plan || "pro_family",
+      planName: circle.subscription?.planName || "Familiar Pro ($79 MXN)"
+    });
+  }
+
   const members = db.getMembersByCircle(circleId);
   const safeZones = db.getSafeZonesByCircle(circleId);
   const alerts = db.getAlerts(circleId);
@@ -223,6 +315,17 @@ app.post('/api/telemetry', (req, res) => {
   const { memberId, lat, lng, accuracy, speedKmh, status, battery, isCharging, address } = req.body;
   if (!memberId || lat === undefined || lng === undefined) {
     return res.status(400).json({ error: "Parámetros incompletos (memberId, lat, lng requeridos)" });
+  }
+
+  const member = db.getMemberById(memberId);
+  if (!member) {
+    return res.status(404).json({ error: "Miembro no encontrado" });
+  }
+
+  const circle = db.getCircleById(member.circleId);
+  const subCheck = checkCircleSubscription(circle);
+  if (!subCheck.valid) {
+    return res.status(402).json({ error: "payment_required", message: "Suscripción familiar inactiva." });
   }
 
   const result = processMemberTelemetry(memberId, {

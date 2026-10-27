@@ -334,16 +334,21 @@ class Database {
     const initialLng = (lng !== undefined && !isNaN(lng)) ? parseFloat(lng) : -99.1332;
     const initialAddress = address || "Casa Familiar (Ubicación GPS)";
 
-    // 1. Create Circle
+    const isExempt = email.toLowerCase().trim() === 'm.ochoa.delrio@gmail.com' || email.toLowerCase().trim() === 'lizbeta92@gmail.com';
+    const hasPaid = !!paymentMeta;
+
+    // 1. Create Circle (Requires paid subscription unless founder)
     const newCircle = {
       id: circleId,
       name: familyName,
       inviteCode,
-      plan: plan || "pro_family",
+      plan: isExempt ? "guardian_plus" : (plan || "pro_family"),
       subscription: {
-        status: "active",
-        planName: plan === "basic" ? "Plan Básico ($29 MXN/mes)" : plan === "guardian_plus" ? "Guardian Plus ($149 MXN/mes)" : "Familiar Pro ($79 MXN/mes)",
-        renewsAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        status: (hasPaid || isExempt) ? "active" : "pending_payment",
+        isLifetime: isExempt,
+        isFounder: isExempt,
+        planName: isExempt ? "Guardian Plus (Vitalicio Fundador)" : plan === "basic" ? "Plan Básico ($29 MXN/mes)" : plan === "guardian_plus" ? "Guardian Plus ($149 MXN/mes)" : "Familiar Pro ($79 MXN/mes)",
+        renewsAt: isExempt ? null : hasPaid ? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() : null,
         paymentMeta: paymentMeta || null
       },
       createdAt: new Date().toISOString()
