@@ -1053,6 +1053,9 @@ function showFloatingMemberCard(member) {
   if (battery) {
     const batVal = member.battery !== undefined ? member.battery : 100;
     const isLow = batVal <= 20;
+    battery.className = "flex items-center gap-1.5 cursor-pointer hover:opacity-80 active:scale-95 transition";
+    battery.onclick = () => calibrateMemberBattery(member.id, batVal);
+    battery.title = "Toca para calibrar el % de batería";
     battery.innerHTML = `
       <i class="ph-bold ${isLow ? 'ph-battery-warning text-red-500' : member.isCharging ? 'ph-battery-charging text-emerald-500' : 'ph-battery-high text-emerald-500'} text-sm"></i>
       <span>${batVal}%</span>
@@ -2742,7 +2745,11 @@ async function handleLoginUser(e) {
 
 // Battery Calibration and Live Device Battery Sync
 async function calibrateMemberBattery(memberId, currentVal) {
-  const newVal = prompt("Calibrar nivel de batería de este dispositivo (% de 1 a 100):", currentVal || 32);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const promptMsg = isIOS
+    ? "🔋 Batería en iPhone:\nApple (iOS Safari) restringe por privacidad la lectura automática de batería en la web.\n\nIngresa el porcentaje (%) real de la batería de tu celular (1 al 100):"
+    : "Calibrar nivel de batería de este dispositivo (% de 1 a 100):";
+  const newVal = prompt(promptMsg, currentVal || 85);
   if (newVal === null) return;
   const num = parseInt(newVal);
   if (isNaN(num) || num < 1 || num > 100) {
@@ -2769,6 +2776,13 @@ async function calibrateMemberBattery(memberId, currentVal) {
 }
 
 function initLiveBatterySync() {
+  // Strictly prevent laptops and desktop computers from overwriting mobile phone batteries
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.innerWidth < 768 && 'ontouchstart' in window);
+  if (!isMobile) {
+    console.log("🖥️ Computadora de escritorio/laptop detectada: omitiendo transmisión de batería de laptop para no sobreescribir la batería del celular.");
+    return;
+  }
+
   if ('getBattery' in navigator) {
     navigator.getBattery().then(battery => {
       const sync = () => {
