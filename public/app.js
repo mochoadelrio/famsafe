@@ -270,9 +270,30 @@ async function syncActiveMemberLocation(coords, shouldFlyTo = false, targetMembe
   }
 
   const storedMemberId = targetMemberId || localStorage.getItem('famsafe_current_member_id');
-  const myMember = (storedMemberId && state.members.find(m => m.id === storedMemberId))
-    || state.members.find(m => m.role === 'guardian')
-    || state.members[0];
+  const storedEmail = localStorage.getItem('famsafe_user_email');
+
+  let myMember = null;
+  if (storedMemberId) {
+    myMember = state.members.find(m => m.id === storedMemberId);
+  }
+  if (!myMember && storedEmail) {
+    const userObj = state.users?.find(u => u.email === storedEmail.toLowerCase());
+    if (userObj) {
+      myMember = state.members.find(m => m.id === userObj.memberId);
+      if (myMember) localStorage.setItem('famsafe_current_member_id', myMember.id);
+    }
+  }
+
+  // If this device is not yet paired with a specific member:
+  if (!myMember) {
+    if (state.members.length > 1) {
+      setTimeout(() => openDeviceIdentityModal(), 500);
+      return;
+    } else {
+      myMember = state.members[0];
+      if (myMember) localStorage.setItem('famsafe_current_member_id', myMember.id);
+    }
+  }
 
   if (!myMember) return;
 
@@ -620,8 +641,85 @@ function renderHeader() {
   }
 }
 
+// Device Pairing & Member Identity Management
+function openDeviceIdentityModal() {
+  const modal = document.getElementById('modal-device-identity');
+  const list = document.getElementById('device-identity-list');
+  if (!modal || !list) return;
+
+  list.innerHTML = '';
+  const currentId = localStorage.getItem('famsafe_current_member_id');
+
+  (state.members || []).forEach(m => {
+    const isCurrent = m.id === currentId;
+    const item = document.createElement('div');
+    item.className = `p-3 rounded-2xl border transition flex items-center justify-between cursor-pointer ${
+      isCurrent ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200' : 'bg-white border-slate-200 hover:border-blue-300'
+    }`;
+    item.onclick = () => setMyDeviceMember(m.id);
+
+    item.innerHTML = `
+      <div class="flex items-center gap-3">
+        <img src="${m.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}" class="w-10 h-10 rounded-full object-cover border-2 border-slate-200">
+        <div>
+          <h4 class="font-extrabold text-xs text-slate-900">${m.name}</h4>
+          <span class="text-[10px] text-slate-500">${m.role === 'guardian' ? 'Tutor' : m.role === 'child' ? 'Hijo' : 'Integrante'}</span>
+        </div>
+      </div>
+      <div>
+        ${isCurrent 
+          ? '<span class="text-[10px] font-black text-blue-600 bg-white px-2 py-1 rounded-lg border border-blue-200 flex items-center gap-1"><i class="ph-bold ph-check"></i> Activo Aquí</span>'
+          : '<button class="text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-600 hover:text-white px-2.5 py-1 rounded-lg transition border border-blue-200">Vincular Celular</button>'
+        }
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  modal.classList.remove('hidden');
+}
+
+function closeDeviceIdentityModal() {
+  document.getElementById('modal-device-identity')?.classList.add('hidden');
+}
+
+function setMyDeviceMember(memberId) {
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) return;
+  localStorage.setItem('famsafe_current_member_id', member.id);
+  closeDeviceIdentityModal();
+  updateDeviceIdentityPill();
+  renderMembers();
+
+  // Reset sync tracking & force immediate broadcast as this member
+  lastSyncedCoords = null;
+  detectUserLocation();
+  alert(`📱 ¡Celular Vinculado!\n\nEste dispositivo ahora transmite la ubicación en tiempo real de:\n👉 ${member.name}`);
+}
+
+function updateDeviceIdentityPill() {
+  const storedId = localStorage.getItem('famsafe_current_member_id');
+  const storedEmail = localStorage.getItem('famsafe_user_email');
+
+  let myMember = null;
+  if (storedId) myMember = state.members.find(m => m.id === storedId);
+  if (!myMember && storedEmail) {
+    const userObj = state.users?.find(u => u.email === storedEmail.toLowerCase());
+    if (userObj) {
+      myMember = state.members.find(m => m.id === userObj.memberId);
+      if (myMember) localStorage.setItem('famsafe_current_member_id', myMember.id);
+    }
+  }
+
+  const nameElem = document.getElementById('device-identity-name');
+  if (nameElem) {
+    nameElem.innerText = myMember ? myMember.name.split(' ')[0] : '¿Quién eres?';
+  }
+}
+
 // Render Family Members in Sidebar
 function renderMembers() {
+  updateDeviceIdentityPill();
   const container = document.getElementById('members-container');
   const walkSelect = document.getElementById('walk-member-select');
   container.innerHTML = '';
@@ -693,6 +791,9 @@ function renderMembers() {
       ? `<span class="text-amber-600 font-extrabold flex items-center gap-1"><i class="ph-bold ph-warning text-xs"></i> Desconectado hace ${diffMinutes}m (App cerrada)</span>`
       : `<span class="text-slate-500">${member.lastLocation?.address || 'Ubicación actual'}</span>`;
 
+    const storedId = localStorage.getItem('famsafe_current_member_id');
+    const isCurrentDevice = storedId === member.id;
+
     card.innerHTML = `
       <div class="flex items-center gap-3">
         <div class="relative">
@@ -702,7 +803,12 @@ function renderMembers() {
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between">
             <h4 class="font-bold text-xs text-slate-900 truncate">${member.name}</h4>
-            ${roleBadge}
+            <div class="flex items-center gap-1 shrink-0">
+              ${isCurrentDevice 
+                ? '<span class="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><i class="ph-bold ph-check"></i> Este Celular</span>' 
+                : `<button onclick="event.stopPropagation(); setMyDeviceMember('${member.id}')" class="text-[9px] bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 font-bold px-2 py-0.5 rounded-full transition border border-blue-200">📱 Soy yo</button>`}
+              ${roleBadge}
+            </div>
           </div>
           <p class="text-[11px] truncate mt-0.5">${subtitleHtml}</p>
 
