@@ -1,6 +1,27 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+
+// Cryptographic password hashing (scrypt with unique salt per user)
+export function hashPassword(password) {
+  if (!password) return '';
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+export function verifyPassword(password, storedPassword) {
+  if (!password || !storedPassword) return false;
+  // Backward compatibility with legacy plaintext passwords
+  if (!storedPassword.includes(':')) {
+    return password === storedPassword;
+  }
+  const [salt, key] = storedPassword.split(':');
+  const keyBuffer = Buffer.from(key, 'hex');
+  const derivedKey = crypto.scryptSync(password, salt, 64);
+  return crypto.timingSafeEqual(keyBuffer, derivedKey);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,6 +103,8 @@ class Database {
       timestamp: nowIso,
       address: resolvedAddr
     };
+    member.lastSeenAt = nowIso;
+    member.isOnline = true;
     member.speedKmh = speedKmh;
     member.status = status;
     if (battery !== undefined) {
@@ -350,11 +373,11 @@ class Database {
     };
     this.data.members.push(newMember);
 
-    // 3. Create User Credential
+    // 3. Create User Credential (Protected with cryptographic scrypt hash)
     const newUser = {
       id: userId,
       email: email.toLowerCase(),
-      password,
+      password: hashPassword(password),
       name: parentName,
       circleId,
       memberId,
@@ -438,7 +461,7 @@ class Database {
       newUser = {
         id: `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         email: normalizedEmail,
-        password,
+        password: hashPassword(password),
         name: memberName,
         circleId: circle.id,
         memberId: newMember.id,
@@ -481,13 +504,13 @@ class Database {
     let user = this.data.users.find(u => u.memberId === memberId);
     if (user) {
       user.email = normalizedEmail;
-      user.password = password;
+      user.password = hashPassword(password);
       user.name = member.name;
     } else {
       user = {
         id: `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         email: normalizedEmail,
-        password,
+        password: hashPassword(password),
         name: member.name,
         circleId: member.circleId,
         memberId: member.id,
@@ -503,8 +526,13 @@ class Database {
   authenticateUser(email, password) {
     if (!this.data.users) this.data.users = [];
     const user = this.findUserByEmail(email);
-    if (!user || user.password !== password) {
+    if (!user || !verifyPassword(password, user.password)) {
       throw new Error("Correo o contraseña incorrectos.");
+    }
+    // Automatically migrate legacy plaintext password to cryptographic hash upon login
+    if (user.password && !user.password.includes(':')) {
+      user.password = hashPassword(password);
+      this.save();
     }
     const circle = this.getCircleById(user.circleId);
     const member = this.getMemberById(user.memberId);

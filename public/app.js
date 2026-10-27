@@ -151,6 +151,57 @@ let gpsWatchId = null;
 let lastSyncedCoords = null;
 let hasCenteredOnRealGps = false;
 
+// Silent Audio & WakeLock Keep-Alive for iOS Safari & Android Background Execution
+let silentAudioElement = null;
+let screenWakeLockInstance = null;
+
+function initBackgroundKeepAlive() {
+  if (!silentAudioElement) {
+    silentAudioElement = document.createElement('audio');
+    silentAudioElement.loop = true;
+    silentAudioElement.preload = 'auto';
+    silentAudioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+    silentAudioElement.setAttribute('playsinline', '');
+    silentAudioElement.setAttribute('webkit-playsinline', '');
+    silentAudioElement.style.position = 'fixed';
+    silentAudioElement.style.width = '1px';
+    silentAudioElement.style.height = '1px';
+    silentAudioElement.style.opacity = '0.01';
+    silentAudioElement.style.pointerEvents = 'none';
+    silentAudioElement.style.bottom = '0';
+    document.body.appendChild(silentAudioElement);
+  }
+
+  silentAudioElement.play().catch(() => {});
+
+  if ('wakeLock' in navigator && !screenWakeLockInstance) {
+    navigator.wakeLock.request('screen').then(wl => {
+      screenWakeLockInstance = wl;
+      screenWakeLockInstance.addEventListener('release', () => { screenWakeLockInstance = null; });
+    }).catch(() => {});
+  }
+
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'FamSafe Protección Familiar',
+      artist: 'Rastreo Activo en Segundo Plano',
+      album: 'FamSafe 24/7'
+    });
+    navigator.mediaSession.playbackState = 'playing';
+  }
+}
+
+// User interactions unlock audio playback permissions on iOS & Android
+window.addEventListener('click', () => initBackgroundKeepAlive(), { passive: true });
+window.addEventListener('touchstart', () => initBackgroundKeepAlive(), { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if ('wakeLock' in navigator && !screenWakeLockInstance) {
+      navigator.wakeLock.request('screen').then(wl => { screenWakeLockInstance = wl; }).catch(() => {});
+    }
+  }
+});
+
 // Map Initialization
 function initMap() {
   map = L.map('map', {
@@ -555,10 +606,13 @@ function renderMembers() {
     peekAvatars.innerHTML = '';
     state.members.slice(0, 4).forEach(m => {
       const isSos = m.status === 'sos';
+      const mTime = m.lastLocation?.timestamp ? new Date(m.lastLocation.timestamp).getTime() : Date.now();
+      const mOffline = Math.round((Date.now() - mTime) / 60000) >= 4;
+
       const img = document.createElement('img');
       img.src = m.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
-      img.className = `w-7 h-7 rounded-full object-cover border-2 ${isSos ? 'border-red-500 ring-2 ring-red-400 animate-pulse' : 'border-white'} shadow-sm`;
-      img.title = m.name;
+      img.className = `w-7 h-7 rounded-full object-cover border-2 ${isSos ? 'border-red-500 ring-2 ring-red-400 animate-pulse' : mOffline ? 'border-slate-400 opacity-75' : 'border-white'} shadow-sm`;
+      img.title = `${m.name} ${mOffline ? '(Desconectado)' : ''}`;
       img.onclick = (e) => {
         e.stopPropagation();
         focusMemberOnMap(m.id);
@@ -595,10 +649,19 @@ function renderMembers() {
       roleBadge = '<span class="text-[10px] bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded">Tutor</span>';
     }
 
+    const now = Date.now();
+    const lastTime = member.lastLocation?.timestamp ? new Date(member.lastLocation.timestamp).getTime() : now;
+    const diffMinutes = Math.max(0, Math.round((now - lastTime) / 60000));
+    const isOffline = diffMinutes >= 4;
+
+    const subtitleHtml = isOffline
+      ? `<span class="text-amber-600 font-extrabold flex items-center gap-1"><i class="ph-bold ph-warning text-xs"></i> Desconectado hace ${diffMinutes}m (App cerrada)</span>`
+      : `<span class="text-slate-500">${member.lastLocation?.address || 'Ubicación actual'}</span>`;
+
     card.innerHTML = `
       <div class="flex items-center gap-3">
         <div class="relative">
-          <img src="${member.avatar}" class="w-11 h-11 rounded-full object-cover border-2 ${isSos ? 'border-red-500 ring-2 ring-red-300' : 'border-slate-200'}">
+          <img src="${member.avatar}" class="w-11 h-11 rounded-full object-cover border-2 ${isSos ? 'border-red-500 ring-2 ring-red-300' : isOffline ? 'border-slate-300 opacity-80' : 'border-slate-200'}">
           ${isSos ? '<span class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 text-[10px] animate-ping">🚨</span>' : ''}
         </div>
         <div class="flex-1 min-w-0">
@@ -606,7 +669,7 @@ function renderMembers() {
             <h4 class="font-bold text-xs text-slate-900 truncate">${member.name}</h4>
             ${roleBadge}
           </div>
-          <p class="text-[11px] text-slate-500 truncate mt-0.5">${member.lastLocation?.address || 'Ubicación actual'}</p>
+          <p class="text-[11px] truncate mt-0.5">${subtitleHtml}</p>
 
           <!-- Battery & Status Bar -->
           <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-[10px] font-semibold text-slate-500">
@@ -734,15 +797,24 @@ function updateOrCreateMemberMarker(member) {
   const isMoving = spd >= 5;
   const isWalking = spd >= 2 && spd < 5;
 
+  // Calculate Offline / Disconnection time
+  const now = Date.now();
+  const lastTime = member.lastLocation?.timestamp ? new Date(member.lastLocation.timestamp).getTime() : now;
+  const diffMinutes = Math.max(0, Math.round((now - lastTime) / 60000));
+  const isOffline = diffMinutes >= 4;
+
   const battery = member.battery !== undefined ? member.battery : 100;
-  const batteryLevelClass = battery <= 20 ? 'low' : battery <= 50 ? 'medium' : 'good';
-  const batteryIcon = member.isCharging ? '⚡' : battery <= 20 ? '🪫' : '🔋';
+  const batteryLevelClass = isOffline ? 'offline' : battery <= 20 ? 'low' : battery <= 50 ? 'medium' : 'good';
+  const batteryIcon = isOffline ? '📴' : member.isCharging ? '⚡' : battery <= 20 ? '🪫' : '🔋';
 
   let statusText = member.name.split(' ')[0];
   let statusBadgeClass = '';
   if (isSos) {
     statusText += ' 🚨 SOS';
     statusBadgeClass = 'sos';
+  } else if (isOffline) {
+    statusText = `⚪ ${diffMinutes}m · ${statusText}`;
+    statusBadgeClass = 'offline';
   } else if (isMoving) {
     statusText = `🚗 ${spd} km/h · ${statusText}`;
     statusBadgeClass = 'moving';
@@ -753,12 +825,12 @@ function updateOrCreateMemberMarker(member) {
 
   const customHtml = `
     <div class="custom-member-marker">
-      <div class="marker-pulse-ring ${isSos ? 'sos' : ''}"></div>
-      <div class="marker-avatar-container">
+      <div class="marker-pulse-ring ${isSos ? 'sos' : ''}" style="${isOffline ? 'display:none;' : ''}"></div>
+      <div class="marker-avatar-container ${isOffline ? 'offline' : ''}">
         <img src="${member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}" class="marker-avatar-img" />
         <div class="marker-battery-pill ${batteryLevelClass}">
           <span>${batteryIcon}</span>
-          <span>${battery}%</span>
+          <span>${isOffline ? `${diffMinutes}m` : `${battery}%`}</span>
         </div>
       </div>
       <div class="marker-name-tag ${statusBadgeClass}">${statusText}</div>
@@ -797,6 +869,11 @@ function showFloatingMemberCard(member) {
   const card = document.getElementById('floating-member-card');
   if (!card || !member) return;
 
+  const now = Date.now();
+  const lastTime = member.lastLocation?.timestamp ? new Date(member.lastLocation.timestamp).getTime() : now;
+  const diffMinutes = Math.max(0, Math.round((now - lastTime) / 60000));
+  const isOffline = diffMinutes >= 4;
+
   const avatar = document.getElementById('card-member-avatar');
   if (avatar) avatar.src = member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
@@ -822,13 +899,12 @@ function showFloatingMemberCard(member) {
 
   const updated = document.getElementById('card-member-updated');
   if (updated) {
-    if (member.lastLocation?.timestamp) {
-      const diffSecs = Math.max(0, Math.round((Date.now() - new Date(member.lastLocation.timestamp).getTime()) / 1000));
-      if (diffSecs < 60) updated.innerText = 'Actualizado hace un momento';
-      else if (diffSecs < 3600) updated.innerText = `Actualizado hace ${Math.round(diffSecs / 60)} min`;
-      else updated.innerText = `Actualizado a las ${new Date(member.lastLocation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    if (isOffline) {
+      updated.innerHTML = `<span class="text-amber-600 font-extrabold flex items-center gap-1"><i class="ph-bold ph-warning"></i> Sin señal hace ${diffMinutes} min (App cerrada o sin red)</span>`;
+    } else if (diffMinutes === 0) {
+      updated.innerHTML = `<span class="text-emerald-600 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Transmitiendo en vivo</span>`;
     } else {
-      updated.innerText = 'Transmitiendo en vivo';
+      updated.innerText = `Actualizado hace ${diffMinutes} min`;
     }
   }
 
