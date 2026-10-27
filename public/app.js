@@ -159,10 +159,11 @@ function initMap() {
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  // OpenStreetMap 100% libre sin API key requerida
-  tileLayerInstance = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
+  // CartoDB Voyager Retina - Modern, crisp, commercial aesthetic (Uber/Apple style)
+  tileLayerInstance = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
   }).addTo(map);
 
   // Auto-detect real user city and location
@@ -382,9 +383,10 @@ function toggleSatelliteView() {
     currentTileLayer = 'satellite';
   } else {
     map.removeLayer(tileLayerInstance);
-    tileLayerInstance = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19
+    tileLayerInstance = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
     }).addTo(map);
     currentTileLayer = 'osm';
   }
@@ -548,6 +550,28 @@ function renderMembers() {
   const sheetBadge = document.getElementById('mobile-sheet-badge');
   if (sheetBadge) sheetBadge.innerText = state.members.length;
 
+  // Render Mobile Floating Peek Pill Avatars
+  const peekAvatars = document.getElementById('mobile-peek-avatars');
+  const peekLabel = document.getElementById('mobile-peek-label');
+  if (peekAvatars) {
+    peekAvatars.innerHTML = '';
+    state.members.slice(0, 4).forEach(m => {
+      const isSos = m.status === 'sos';
+      const img = document.createElement('img');
+      img.src = m.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+      img.className = `w-7 h-7 rounded-full object-cover border-2 ${isSos ? 'border-red-500 ring-2 ring-red-400 animate-pulse' : 'border-white'} shadow-sm`;
+      img.title = m.name;
+      img.onclick = (e) => {
+        e.stopPropagation();
+        focusMemberOnMap(m.id);
+      };
+      peekAvatars.appendChild(img);
+    });
+  }
+  if (peekLabel) {
+    peekLabel.innerText = state.members.length === 1 ? '1 familiar' : `${state.members.length} familiares`;
+  }
+
   state.members.forEach(member => {
     // Add to Walk Select
     const opt = document.createElement('option');
@@ -708,22 +732,46 @@ function renderMapElements() {
 function updateOrCreateMemberMarker(member) {
   if (!member.lastLocation) return;
   const isSos = member.status === 'sos';
+  const spd = member.lastLocation.speedKmh || 0;
+  const isMoving = spd >= 5;
+  const isWalking = spd >= 2 && spd < 5;
+
+  const battery = member.battery !== undefined ? member.battery : 100;
+  const batteryLevelClass = battery <= 20 ? 'low' : battery <= 50 ? 'medium' : 'good';
+  const batteryIcon = member.isCharging ? '⚡' : battery <= 20 ? '🪫' : '🔋';
+
+  let statusText = member.name.split(' ')[0];
+  let statusBadgeClass = '';
+  if (isSos) {
+    statusText += ' 🚨 SOS';
+    statusBadgeClass = 'sos';
+  } else if (isMoving) {
+    statusText = `🚗 ${spd} km/h · ${statusText}`;
+    statusBadgeClass = 'moving';
+  } else if (isWalking) {
+    statusText = `🚶 ${statusText}`;
+    statusBadgeClass = 'moving';
+  }
 
   const customHtml = `
     <div class="custom-member-marker">
       <div class="marker-pulse-ring ${isSos ? 'sos' : ''}"></div>
       <div class="marker-avatar-container">
-        <img src="${member.avatar}" class="marker-avatar-img" />
+        <img src="${member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}" class="marker-avatar-img" />
+        <div class="marker-battery-pill ${batteryLevelClass}">
+          <span>${batteryIcon}</span>
+          <span>${battery}%</span>
+        </div>
       </div>
-      <div class="marker-name-tag">${member.name.split(' ')[0]} ${isSos ? '🚨' : ''}</div>
+      <div class="marker-name-tag ${statusBadgeClass}">${statusText}</div>
     </div>
   `;
 
   const customIcon = L.divIcon({
     html: customHtml,
     className: 'leaflet-custom-marker',
-    iconSize: [52, 60],
-    iconAnchor: [26, 30]
+    iconSize: [60, 70],
+    iconAnchor: [30, 35]
   });
 
   if (memberMarkers[member.id]) {
@@ -774,12 +822,25 @@ function showFloatingMemberCard(member) {
   const address = document.getElementById('card-member-address');
   if (address) address.innerText = member.lastLocation?.address || 'Ubicación en tiempo real';
 
+  const updated = document.getElementById('card-member-updated');
+  if (updated) {
+    if (member.lastLocation?.timestamp) {
+      const diffSecs = Math.max(0, Math.round((Date.now() - new Date(member.lastLocation.timestamp).getTime()) / 1000));
+      if (diffSecs < 60) updated.innerText = 'Actualizado hace un momento';
+      else if (diffSecs < 3600) updated.innerText = `Actualizado hace ${Math.round(diffSecs / 60)} min`;
+      else updated.innerText = `Actualizado a las ${new Date(member.lastLocation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      updated.innerText = 'Transmitiendo en vivo';
+    }
+  }
+
   const battery = document.getElementById('card-member-battery');
   if (battery) {
-    const isLow = (member.battery || 100) <= 20;
+    const batVal = member.battery !== undefined ? member.battery : 100;
+    const isLow = batVal <= 20;
     battery.innerHTML = `
       <i class="ph-bold ${isLow ? 'ph-battery-warning text-red-500' : member.isCharging ? 'ph-battery-charging text-emerald-500' : 'ph-battery-high text-emerald-500'} text-sm"></i>
-      <span>${member.battery || 100}%</span>
+      <span>${batVal}%</span>
     `;
   }
 
@@ -792,23 +853,51 @@ function showFloatingMemberCard(member) {
     `;
   }
 
+  const accuracy = document.getElementById('card-member-accuracy');
+  if (accuracy) {
+    const acc = member.lastLocation?.accuracy ? `±${Math.round(member.lastLocation.accuracy)}m` : '±8m';
+    accuracy.innerHTML = `<i class="ph-bold ph-crosshair"></i><span>${acc}</span>`;
+  }
+
   const sosDot = document.getElementById('card-member-sos-dot');
   if (sosDot) {
     if (member.status === 'sos') sosDot.classList.remove('hidden');
     else sosDot.classList.add('hidden');
   }
 
-  const historyBtn = document.getElementById('card-member-history-btn');
-  if (historyBtn) {
-    historyBtn.onclick = () => openMemberHistoryModal(member.id);
+  // Waze Button
+  const wazeBtn = document.getElementById('card-member-waze-btn');
+  if (wazeBtn && member.lastLocation) {
+    wazeBtn.onclick = () => {
+      window.open(`https://waze.com/ul?ll=${member.lastLocation.lat},${member.lastLocation.lng}&navigate=yes`, '_blank');
+    };
   }
 
+  // Google Maps Button
   const navBtn = document.getElementById('card-member-navigate-btn');
   if (navBtn && member.lastLocation) {
     navBtn.onclick = () => {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${member.lastLocation.lat},${member.lastLocation.lng}`;
-      window.open(url, '_blank');
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${member.lastLocation.lat},${member.lastLocation.lng}`, '_blank');
     };
+  }
+
+  // Direct Phone Call Button
+  const callBtn = document.getElementById('card-member-call-btn');
+  if (callBtn) {
+    callBtn.onclick = () => {
+      if (member.phone) {
+        window.location.href = `tel:${member.phone}`;
+      } else {
+        const phone = prompt(`Ingresa o confirma el teléfono de ${member.name} para marcar:`);
+        if (phone) window.location.href = `tel:${phone.trim()}`;
+      }
+    };
+  }
+
+  // History Button
+  const historyBtn = document.getElementById('card-member-history-btn');
+  if (historyBtn) {
+    historyBtn.onclick = () => openMemberHistoryModal(member.id);
   }
 
   card.classList.remove('hidden');
@@ -1160,7 +1249,35 @@ function closeMobileMenu() {
   document.getElementById('modal-mobile-menu')?.classList.add('hidden');
 }
 
-// Real Emergency SOS Action (No simulation)
+// Real Emergency SOS Action with 5-Second Cancelable Countdown
+let sosCountdownInterval = null;
+let sosCountdownSeconds = 5;
+
+function playSosTickSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {}
+}
+
+function cancelSosCountdown() {
+  if (sosCountdownInterval) {
+    clearInterval(sosCountdownInterval);
+    sosCountdownInterval = null;
+  }
+  document.getElementById('modal-sos-countdown')?.classList.add('hidden');
+}
+
 async function triggerRealSos() {
   if (!state.circle) {
     alert("Debes crear o unirte a tu círculo familiar primero.");
@@ -1174,10 +1291,53 @@ async function triggerRealSos() {
     return;
   }
 
-  const confirmSos = confirm(
-    `🚨 ¿ACTIVAR ALERTA DE EMERGENCIA SOS?\n\nSe enviará una notificación prioritaria inmediata a toda tu familia con tu ubicación GPS en tiempo real.`
-  );
-  if (!confirmSos) return;
+  const modal = document.getElementById('modal-sos-countdown');
+  const numElem = document.getElementById('sos-countdown-number');
+  const progElem = document.getElementById('sos-countdown-progress');
+  if (!modal || !numElem || !progElem) {
+    dispatchSosImmediately();
+    return;
+  }
+
+  sosCountdownSeconds = 5;
+  numElem.innerText = sosCountdownSeconds;
+  progElem.style.strokeDashoffset = '0';
+  modal.classList.remove('hidden');
+
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  playSosTickSound();
+
+  const circumference = 377;
+  const totalSeconds = 5;
+
+  if (sosCountdownInterval) clearInterval(sosCountdownInterval);
+
+  sosCountdownInterval = setInterval(() => {
+    sosCountdownSeconds--;
+    if (sosCountdownSeconds > 0) {
+      numElem.innerText = sosCountdownSeconds;
+      const offset = circumference * (1 - sosCountdownSeconds / totalSeconds);
+      progElem.style.strokeDashoffset = offset;
+      if (navigator.vibrate) navigator.vibrate(150);
+      playSosTickSound();
+    } else {
+      clearInterval(sosCountdownInterval);
+      sosCountdownInterval = null;
+      modal.classList.add('hidden');
+      dispatchSosImmediately();
+    }
+  }, 1000);
+}
+
+async function dispatchSosImmediately() {
+  if (sosCountdownInterval) {
+    clearInterval(sosCountdownInterval);
+    sosCountdownInterval = null;
+  }
+  document.getElementById('modal-sos-countdown')?.classList.add('hidden');
+
+  const member = state.members[0];
+  if (!member) return;
 
   playChime('emergency');
 
@@ -1222,9 +1382,49 @@ async function triggerRealSos() {
     }
 
     await fetchCircleData();
-    alert("🚨 ¡Alerta de Emergencia SOS transmitida con éxito a tu familia!");
   } catch (err) {
     alert("Error al emitir alerta SOS: " + err.message);
+  }
+}
+
+// PWA Installation Guide Support
+let deferredPwaPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPwaPrompt = e;
+  const androidBtn = document.getElementById('pwa-native-install-btn');
+  if (androidBtn) androidBtn.classList.remove('hidden');
+});
+
+function openPwaModal() {
+  const modal = document.getElementById('modal-pwa-install');
+  if (!modal) return;
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const iosGuide = document.getElementById('pwa-instructions-ios');
+  const androidGuide = document.getElementById('pwa-instructions-android');
+  if (isIos) {
+    if (iosGuide) iosGuide.classList.remove('hidden');
+    if (androidGuide) androidGuide.classList.add('hidden');
+  } else {
+    if (androidGuide) androidGuide.classList.remove('hidden');
+    if (iosGuide) iosGuide.classList.add('hidden');
+  }
+  modal.classList.remove('hidden');
+}
+
+function closePwaModal() {
+  document.getElementById('modal-pwa-install')?.classList.add('hidden');
+}
+
+async function triggerPwaPrompt() {
+  if (deferredPwaPrompt) {
+    deferredPwaPrompt.prompt();
+    const { outcome } = await deferredPwaPrompt.userChoice;
+    console.log(`PWA install prompt outcome: ${outcome}`);
+    deferredPwaPrompt = null;
+    closePwaModal();
+  } else {
+    alert("Para instalar FamSafe en tu pantalla de inicio, abre el menú de tu navegador y presiona 'Agregar a pantalla principal' o 'Instalar aplicación'.");
   }
 }
 

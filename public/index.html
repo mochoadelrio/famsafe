@@ -405,47 +405,73 @@
         </button>
       </div>
 
+      <!-- MOBILE PEEK PILL (Floating avatar stack on map for fast switching) -->
+      <div id="mobile-peek-pill" onclick="handleMobileNav('members')" class="md:hidden absolute bottom-20 left-1/2 -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-xl border border-slate-200/90 flex items-center gap-2 cursor-pointer select-none">
+        <div id="mobile-peek-avatars" class="flex items-center -space-x-2">
+          <!-- Populated dynamically by renderMembers() -->
+        </div>
+        <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
+          <span id="mobile-peek-label">Familia</span>
+          <i class="ph-bold ph-caret-up text-xs text-slate-400"></i>
+        </span>
+      </div>
+
       <!-- FLOATING MEMBER QUICK CARD (When a member is selected/tapped) -->
-      <div id="floating-member-card" class="hidden absolute bottom-16 inset-x-3 sm:inset-x-auto sm:right-6 sm:w-96 z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-slate-200 animate-slide-up">
+      <div id="floating-member-card" class="hidden absolute bottom-16 inset-x-3 sm:inset-x-auto sm:right-6 sm:w-96 z-20 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-slate-200 animate-slide-up">
         <div class="flex items-start justify-between gap-2.5">
           <div class="flex items-center gap-3 min-w-0">
             <div class="relative shrink-0">
-              <img id="card-member-avatar" src="" alt="Familiar" class="w-12 h-12 rounded-full object-cover border-2 border-blue-500 shadow-sm">
+              <img id="card-member-avatar" src="" alt="Familiar" class="w-13 h-13 rounded-full object-cover border-2 border-blue-500 shadow-md">
               <span id="card-member-sos-dot" class="hidden absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 text-[10px] animate-ping">🚨</span>
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-1.5">
-                <h4 id="card-member-name" class="font-bold text-sm text-slate-900 truncate">Familiar</h4>
+                <h4 id="card-member-name" class="font-extrabold text-sm text-slate-900 truncate">Familiar</h4>
                 <span id="card-member-role" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-700 shrink-0">Tutor</span>
               </div>
               <p id="card-member-address" class="text-xs text-slate-500 truncate mt-0.5">Ubicación...</p>
+              <span id="card-member-updated" class="text-[10px] font-semibold text-slate-400">Actualizado hace un momento</span>
             </div>
           </div>
-          <button onclick="closeFloatingMemberCard()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+          <button onclick="closeFloatingMemberCard()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition" title="Cerrar">
             <i class="ph-bold ph-x text-base"></i>
           </button>
         </div>
 
-        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-          <div class="flex items-center gap-3 text-slate-600 font-semibold text-[11px]">
-            <span id="card-member-battery" class="flex items-center gap-1">
-              <i class="ph-bold ph-battery-high text-emerald-500 text-sm"></i>
-              <span>--%</span>
-            </span>
-            <span id="card-member-speed" class="flex items-center gap-1">
-              <i class="ph-bold ph-person-simple-walk text-blue-500 text-sm"></i>
-              <span>0 km/h</span>
-            </span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <button id="card-member-history-btn" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs flex items-center gap-1 transition">
-              <i class="ph-bold ph-clock-counter-clockwise"></i>
-              <span>Historial</span>
-            </button>
-            <button id="card-member-navigate-btn" class="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition shadow-sm" title="Abrir en Google Maps">
-              <i class="ph-bold ph-arrow-square-out text-base"></i>
-            </button>
-          </div>
+        <!-- Telemetry bar -->
+        <div class="mt-3 py-2 px-2.5 bg-slate-50 rounded-xl flex items-center justify-between text-[11px] font-semibold text-slate-600">
+          <span id="card-member-battery" class="flex items-center gap-1">
+            <i class="ph-bold ph-battery-high text-emerald-500 text-sm"></i>
+            <span>--%</span>
+          </span>
+          <span id="card-member-speed" class="flex items-center gap-1">
+            <i class="ph-bold ph-person-simple-walk text-blue-500 text-sm"></i>
+            <span>En reposo</span>
+          </span>
+          <span id="card-member-accuracy" class="text-slate-400 text-[10px] flex items-center gap-0.5">
+            <i class="ph-bold ph-crosshair"></i>
+            <span>±8m</span>
+          </span>
+        </div>
+
+        <!-- 1-Tap Quick Action Buttons (Life360 / Find My style) -->
+        <div class="mt-3 pt-2 border-t border-slate-100 grid grid-cols-4 gap-1.5 text-xs">
+          <button id="card-member-waze-btn" class="p-2 bg-sky-50 hover:bg-sky-100 text-sky-700 font-extrabold rounded-xl flex flex-col items-center justify-center gap-0.5 transition active:scale-95" title="Navegar con Waze">
+            <i class="ph-bold ph-navigation-arrow text-base text-sky-600"></i>
+            <span class="text-[10px]">Waze</span>
+          </button>
+          <button id="card-member-navigate-btn" class="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold rounded-xl flex flex-col items-center justify-center gap-0.5 transition active:scale-95" title="Navegar con Google Maps">
+            <i class="ph-bold ph-map-pin text-base text-blue-600"></i>
+            <span class="text-[10px]">Maps</span>
+          </button>
+          <button id="card-member-call-btn" class="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold rounded-xl flex flex-col items-center justify-center gap-0.5 transition active:scale-95" title="Llamar">
+            <i class="ph-bold ph-phone-call text-base text-emerald-600"></i>
+            <span class="text-[10px]">Llamar</span>
+          </button>
+          <button id="card-member-history-btn" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-xl flex flex-col items-center justify-center gap-0.5 transition active:scale-95" title="Ver historial de rutas">
+            <i class="ph-bold ph-clock-counter-clockwise text-base text-indigo-600"></i>
+            <span class="text-[10px]">Rutas</span>
+          </button>
         </div>
       </div>
 
@@ -541,6 +567,17 @@
             <div class="text-left">
               <span class="block font-bold">Acompáñame a Casa</span>
               <span class="text-[10px] text-indigo-700 block">Temporizador de trayecto seguro</span>
+            </div>
+          </div>
+          <i class="ph-bold ph-caret-right text-slate-400"></i>
+        </button>
+
+        <button onclick="closeMobileMenu(); openPwaModal();" class="w-full p-3 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200/80 flex items-center justify-between transition">
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-device-mobile text-sky-600 text-lg"></i>
+            <div class="text-left">
+              <span class="block font-bold">Instalar en Pantalla de Inicio</span>
+              <span class="text-[10px] text-sky-700 block">Acceso rápido y alertas en segundo plano</span>
             </div>
           </div>
           <i class="ph-bold ph-caret-right text-slate-400"></i>
@@ -1199,6 +1236,102 @@
           Guardar Mi Acceso
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONTEO REGRESIVO SOS (5 Segundos para evitar falsos positivos) -->
+  <div id="modal-sos-countdown" class="hidden fixed inset-0 z-50 bg-red-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-2 border-red-500 text-center space-y-4 animate-slide-up">
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-700 text-[11px] font-black rounded-full uppercase tracking-wider">
+        <i class="ph-bold ph-warning-octagon text-sm animate-pulse"></i>
+        <span>Alerta de Emergencia</span>
+      </div>
+      
+      <div>
+        <h3 class="text-xl font-black text-slate-900">Enviando Alerta SOS</h3>
+        <p class="text-xs text-slate-500 mt-1">Se notificará a todos tus familiares con tu ubicación GPS en tiempo real y sonido de sirena prioritario.</p>
+      </div>
+
+      <!-- Countdown Circle -->
+      <div class="sos-circle-timer">
+        <svg class="sos-circle-svg" viewBox="0 0 140 140">
+          <circle class="sos-circle-bg" cx="70" cy="70" r="60"></circle>
+          <circle id="sos-countdown-progress" class="sos-circle-bar" cx="70" cy="70" r="60"></circle>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span id="sos-countdown-number" class="text-5xl font-black text-red-600">5</span>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Segundos</span>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="cancelSosCountdown()" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
+          <i class="ph-bold ph-x text-lg"></i>
+          <span>Cancelar (Fue un error)</span>
+        </button>
+        
+        <div class="flex items-center gap-2 pt-1">
+          <button onclick="dispatchSosImmediately()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-red-200 transition">
+            Enviar Ya Mismo
+          </button>
+          <a href="tel:911" class="flex-1 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1">
+            <i class="ph-bold ph-phone-call"></i>
+            <span>Llamar al 911</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INSTALACIÓN PWA (Agregar a pantalla de inicio para iOS y Android) -->
+  <div id="modal-pwa-install" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-slide-up">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <img src="/logo.png" alt="FamSafe" class="w-12 h-12 rounded-2xl object-cover shadow-md">
+          <div>
+            <h3 class="font-extrabold text-base text-slate-900">Instala FamSafe</h3>
+            <p class="text-xs text-slate-500">Acceso instantáneo y alertas en vivo</p>
+          </div>
+        </div>
+        <button onclick="closePwaModal()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-3.5 bg-blue-50/80 rounded-2xl border border-blue-100 text-xs text-slate-700 space-y-2">
+        <p class="font-bold text-blue-900 flex items-center gap-1.5">
+          <i class="ph-bold ph-shield-check text-blue-600 text-base"></i>
+          <span>Ventajas de instalar la app:</span>
+        </p>
+        <ul class="space-y-1 text-[11px] text-slate-600 pl-4 list-disc">
+          <li>Recibe alertas SOS aunque tengas la pantalla apagada.</li>
+          <li>Seguimiento GPS más estable y en segundo plano.</li>
+          <li>Abre la app en pantalla completa sin barra de navegador.</li>
+        </ul>
+      </div>
+
+      <!-- Instructions dynamic based on iOS or Android -->
+      <div id="pwa-instructions-ios" class="hidden p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1.5">
+        <p class="font-bold text-slate-900">En iPhone (Safari):</p>
+        <ol class="list-decimal pl-4 space-y-1 text-[11px] text-slate-600">
+          <li>Toca el botón <strong>Compartir</strong> <i class="ph-bold ph-share-network inline"></i> (abajo al centro).</li>
+          <li>Baja y selecciona <strong>"Agregar a pantalla de inicio"</strong>.</li>
+          <li>Toca <strong>"Agregar"</strong> arriba a la derecha. ¡Listo!</li>
+        </ol>
+      </div>
+
+      <div id="pwa-instructions-android" class="hidden space-y-2">
+        <button id="pwa-native-install-btn" onclick="triggerPwaPrompt()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-blue-200 transition flex items-center justify-center gap-2">
+          <i class="ph-bold ph-download-simple text-base"></i>
+          <span>Instalar Aplicación en Celular</span>
+        </button>
+        <p class="text-[10px] text-center text-slate-400">O toca el menú de Chrome (3 puntos) &rarr; "Instalar app".</p>
+      </div>
+
+      <button onclick="closePwaModal()" class="w-full py-2.5 text-xs text-slate-500 font-bold hover:text-slate-700">
+        Continuar en el navegador
+      </button>
     </div>
   </div>
 
