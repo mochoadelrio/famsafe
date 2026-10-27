@@ -149,6 +149,7 @@ let userLiveCoords = null;
 let userCurrentLocationMarker = null;
 let gpsWatchId = null;
 let lastSyncedCoords = null;
+let lastTelemetryTime = 0;
 let hasCenteredOnRealGps = false;
 
 // Silent Audio & WakeLock Keep-Alive for iOS Safari & Android Background Execution
@@ -320,36 +321,49 @@ async function syncActiveMemberLocation(coords, shouldFlyTo = false, targetMembe
     map.flyTo([coords.lat, coords.lng], 16, { duration: 1.3 });
   }
 
-  // Avoid duplicate telemetry requests if position changed by less than ~8 meters and not forced
+  // Intelligent telemetry throttling:
+  // If moving, sync immediately. If stationary (< 8 meters), sync every 45s so member never appears offline
+  const now = Date.now();
+  let isStationaryHeartbeat = false;
+
   if (!shouldFlyTo && lastSyncedCoords) {
     const dLat = Math.abs(coords.lat - lastSyncedCoords.lat);
     const dLng = Math.abs(coords.lng - lastSyncedCoords.lng);
-    if (dLat < 0.00008 && dLng < 0.00008) return;
-  }
-  lastSyncedCoords = { lat: coords.lat, lng: coords.lng };
+    const timeSinceLastSync = now - lastTelemetryTime;
 
-  // Reverse geocode street and neighborhood via OpenStreetMap Nominatim
-  let resolvedAddress = 'Ubicación GPS en vivo';
-  try {
-    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}`, {
-      headers: { 'Accept-Language': 'es' }
-    });
-    if (geoRes.ok) {
-      const geoData = await geoRes.json();
-      if (geoData && geoData.address) {
-        const road = geoData.address.road || geoData.address.pedestrian || geoData.address.residential || '';
-        const suburb = geoData.address.suburb || geoData.address.neighbourhood || geoData.address.city_district || '';
-        const city = geoData.address.city || geoData.address.town || geoData.address.municipality || geoData.address.state || '';
-        const parts = [road, suburb !== road ? suburb : '', city].filter(Boolean);
-        if (parts.length > 0) {
-          resolvedAddress = parts.slice(0, 3).join(', ');
-        } else if (geoData.display_name) {
-          resolvedAddress = geoData.display_name.split(',').slice(0, 3).join(',');
+    if (dLat < 0.00008 && dLng < 0.00008) {
+      if (timeSinceLastSync < 45000) return; // Skip if sent less than 45 seconds ago
+      isStationaryHeartbeat = true; // 45+ seconds elapsed, send stationary heartbeat
+    }
+  }
+
+  lastSyncedCoords = { lat: coords.lat, lng: coords.lng };
+  lastTelemetryTime = now;
+
+  // Reverse geocode street and neighborhood via OpenStreetMap Nominatim (only on real moves or first sync)
+  let resolvedAddress = prevAddr || 'Ubicación GPS en vivo';
+  if (!isStationaryHeartbeat || !prevAddr || prevAddr.includes('Actualizando') || prevAddr.includes('Ubicación GPS')) {
+    try {
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}`, {
+        headers: { 'Accept-Language': 'es' }
+      });
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData && geoData.address) {
+          const road = geoData.address.road || geoData.address.pedestrian || geoData.address.residential || '';
+          const suburb = geoData.address.suburb || geoData.address.neighbourhood || geoData.address.city_district || '';
+          const city = geoData.address.city || geoData.address.town || geoData.address.municipality || geoData.address.state || '';
+          const parts = [road, suburb !== road ? suburb : '', city].filter(Boolean);
+          if (parts.length > 0) {
+            resolvedAddress = parts.slice(0, 3).join(', ');
+          } else if (geoData.display_name) {
+            resolvedAddress = geoData.display_name.split(',').slice(0, 3).join(',');
+          }
         }
       }
+    } catch (e) {
+      resolvedAddress = prevAddr || `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
     }
-  } catch (e) {
-    resolvedAddress = `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
   }
 
   myMember.lastLocation.address = resolvedAddress;
@@ -441,6 +455,21 @@ function detectUserLocation() {
       () => {},
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
     );
+
+    // Keep-alive heartbeat interval: periodically transmits telemetry so stationary members remain online
+    if (!window.gpsHeartbeatInterval) {
+      window.gpsHeartbeatInterval = setInterval(() => {
+        if ('geolocation' in navigator && state.members?.length > 0) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => handleGpsSuccess(pos, false),
+            () => {
+              if (userLiveCoords) syncActiveMemberLocation(userLiveCoords, false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+          );
+        }
+      }, 45000);
+    }
   }
 }
 
@@ -785,7 +814,7 @@ function renderMembers() {
     const now = Date.now();
     const lastTime = member.lastLocation?.timestamp ? new Date(member.lastLocation.timestamp).getTime() : now;
     const diffMinutes = Math.max(0, Math.round((now - lastTime) / 60000));
-    const isOffline = diffMinutes >= 4;
+    const isOffline = diffMinutes >= 6;
 
     const subtitleHtml = isOffline
       ? `<span class="text-amber-600 font-extrabold flex items-center gap-1"><i class="ph-bold ph-warning text-xs"></i> Desconectado hace ${diffMinutes}m (App cerrada)</span>`
@@ -942,7 +971,7 @@ function updateOrCreateMemberMarker(member) {
   const now = Date.now();
   const lastTime = member.lastLocation?.timestamp ? new Date(member.lastLocation.timestamp).getTime() : now;
   const diffMinutes = Math.max(0, Math.round((now - lastTime) / 60000));
-  const isOffline = diffMinutes >= 4;
+  const isOffline = diffMinutes >= 6;
 
   const battery = member.battery !== undefined ? member.battery : 100;
   const batteryLevelClass = isOffline ? 'offline' : battery <= 20 ? 'low' : battery <= 50 ? 'medium' : 'good';
@@ -1013,7 +1042,7 @@ function showFloatingMemberCard(member) {
   const now = Date.now();
   const lastTime = member.lastLocation?.timestamp ? new Date(member.lastLocation.timestamp).getTime() : now;
   const diffMinutes = Math.max(0, Math.round((now - lastTime) / 60000));
-  const isOffline = diffMinutes >= 4;
+  const isOffline = diffMinutes >= 6;
 
   const avatar = document.getElementById('card-member-avatar');
   if (avatar) avatar.src = member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
