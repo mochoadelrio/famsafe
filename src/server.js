@@ -26,6 +26,34 @@ const io = new SocketIOServer(server, {
 
 const PORT = process.env.PORT || 3005;
 
+// Defense-in-depth security: Block access to sensitive files, database, or dotfiles
+app.use((req, res, next) => {
+  const url = req.url.toLowerCase();
+  if (url.includes('.json') || url.includes('.env') || url.includes('.git') || url.includes('/data') || url.includes('/src')) {
+    if (url === '/manifest.json') return next();
+    return res.status(403).json({ error: "Access Denied" });
+  }
+  res.removeHeader('X-Powered-By');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+});
+
+// Sanitize user entity so password hashes can NEVER be leaked over the wire
+export function sanitizeUser(u) {
+  if (!u) return null;
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    circleId: u.circleId,
+    memberId: u.memberId,
+    isFounder: !!u.isFounder,
+    isOwner: !!u.isOwner
+  };
+}
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public'), { index: false }));
@@ -123,7 +151,7 @@ app.post('/api/auth/register-family', (req, res) => {
       success: true,
       circle: result.circle,
       member: result.member,
-      user: { id: result.user.id, email: result.user.email, name: result.user.name },
+      user: sanitizeUser(result.user),
       inviteCode: result.circle.inviteCode
     });
   } catch (err) {
@@ -157,7 +185,7 @@ app.post('/api/auth/login', (req, res) => {
       success: true,
       circle: result.circle,
       member: result.member,
-      user: { id: result.user.id, email: result.user.email, name: result.user.name }
+      user: sanitizeUser(result.user)
     });
   } catch (err) {
     res.status(401).json({ error: err.message });
@@ -208,7 +236,7 @@ app.post('/api/circles/join', (req, res) => {
       success: true,
       circle: result.circle,
       member: result.member,
-      user: result.user || null
+      user: sanitizeUser(result.user)
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -220,7 +248,7 @@ app.post('/api/members/:id/credentials', (req, res) => {
   const { email, password } = req.body;
   try {
     const result = db.setMemberCredentials(req.params.id, email, password);
-    res.json({ success: true, user: { id: result.user.id, email: result.user.email, name: result.user.name } });
+    res.json({ success: true, user: sanitizeUser(result.user) });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
