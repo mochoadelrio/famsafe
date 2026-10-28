@@ -195,13 +195,48 @@ function initBackgroundKeepAlive() {
 // User interactions unlock audio playback permissions on iOS & Android
 window.addEventListener('click', () => initBackgroundKeepAlive(), { passive: true });
 window.addEventListener('touchstart', () => initBackgroundKeepAlive(), { passive: true });
+
+// Instant recovery when returning to app (after switching apps or unlocking phone)
+async function handleAppResume() {
+  console.log("📱 App en primer plano detectada: reactivando GPS y sincronizando círculo...");
+  initBackgroundKeepAlive();
+
+  if ('wakeLock' in navigator && !screenWakeLockInstance) {
+    navigator.wakeLock.request('screen').then(wl => {
+      screenWakeLockInstance = wl;
+    }).catch(() => {});
+  }
+
+  // Force immediate GPS refresh
+  if ('geolocation' in navigator) {
+    lastSyncedCoords = null; // Reset throttle to force fresh telemetry
+    navigator.geolocation.getCurrentPosition(
+      (pos) => handleGpsSuccess(pos, false),
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  }
+
+  // Immediately refresh circle data from server
+  const circleId = CURRENT_CIRCLE_ID || state.circle?.id || localStorage.getItem('famsafe_circle_id');
+  if (circleId) {
+    fetchCircleData(circleId);
+  }
+
+  // Re-establish socket connection if disconnected
+  if (socket) {
+    if (!socket.connected) socket.connect();
+    if (circleId) socket.emit('circle:join', circleId);
+  }
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    if ('wakeLock' in navigator && !screenWakeLockInstance) {
-      navigator.wakeLock.request('screen').then(wl => { screenWakeLockInstance = wl; }).catch(() => {});
-    }
+    handleAppResume();
   }
 });
+window.addEventListener('focus', () => handleAppResume());
+window.addEventListener('pageshow', () => handleAppResume());
 
 // Map Initialization
 function initMap() {
